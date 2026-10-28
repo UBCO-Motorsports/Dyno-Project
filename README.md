@@ -4,19 +4,36 @@ Laptop-side software for the UBCO Motorsports water-brake dynamometer. The rig m
 
 The GitHub issues are the work queue. They are ordered so a new member can finish a task in about an hour, then take longer tasks as the fundamentals get familiar.
 
-## Start tonight
+**New here?** Read [docs/README.md](docs/README.md) first. It explains the project and every term used below in plain words, and walks through a first issue.
 
-These five are about an hour each. They do not need the rig, and they do not need each other. Take one, follow the test steps in the issue, and open a pull request.
+## Deadline and plan
 
-| Issue | What you do |
+The project ends on **Monday 11 January 2027**. The full schedule is in [docs/delivery-plan.md](docs/delivery-plan.md).
+
+| Date | What |
 | --- | --- |
-| [#1](https://github.com/UBCO-Motorsports/Dyno-Project/issues/1) | Calculate power from torque and speed |
-| [#2](https://github.com/UBCO-Motorsports/Dyno-Project/issues/2) | Calculate torque from force and arm length |
-| [#3](https://github.com/UBCO-Motorsports/Dyno-Project/issues/3) | Name the 150 N·m, 7000 rpm, and 80 kW limits |
-| [#4](https://github.com/UBCO-Motorsports/Dyno-Project/issues/4) | Lock the CSV column names |
-| [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) | Ask Owen, Alex, and the sub-teams the open questions |
+| Thu 26 Nov 2026 | **MVP:** one calibrated, logged, low-load run, with the valve set by hand, that the team can stop at any time |
+| Thu 3 Dec 2026 | **Validation:** the rig's numbers checked against independent references |
+| 4 Dec – 3 Jan | Exams and break. No deadlines |
+| Mon 11 Jan 2027 | **Project ends.** Handover merged |
 
-[#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) is the one to take if you would rather write to people than write a function during midterms.
+Sprints are one week and end with a Thursday review in front of the people named for that week. GitHub milestones `S1` to `S6` carry the due dates.
+
+## Start here
+
+These are the first sprint's issues (due Thursday 5 November). None of them needs the rig.
+
+| Issue | What you do | Size |
+| --- | --- | --- |
+| [#36](https://github.com/UBCO-Motorsports/Dyno-Project/issues/36) | Turn on automatic tests for every pull request | 1 hour |
+| [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) | Ask Owen, Alex, and the sub-teams the open questions (due Tue 3 Nov) | 1 hour of messages |
+| [#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37) | Compare controller boards for Electrical to choose | 2 hours |
+| [#3](https://github.com/UBCO-Motorsports/Dyno-Project/issues/3) | Name the 150 N·m, 7000 rpm, and 80 kW limits | 1 hour |
+| [#4](https://github.com/UBCO-Motorsports/Dyno-Project/issues/4) | Lock the CSV column names | 1 hour |
+| [#6](https://github.com/UBCO-Motorsports/Dyno-Project/issues/6) | Reject torque and power inputs that cannot be used | 2 hours |
+| [#10](https://github.com/UBCO-Motorsports/Dyno-Project/issues/10) | Build one sample record | half day |
+
+[#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) and [#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37) are the ones to take if you would rather talk to people than write a function during midterms.
 
 ## Kanban
 
@@ -32,13 +49,18 @@ Columns are labels. When you start an issue, remove its current `board:` label a
 | In review | [waiting on a reviewer](https://github.com/UBCO-Motorsports/Dyno-Project/issues?q=is%3Aopen+label%3A%22board%3A+in+review%22) |
 | Done | [closed issues](https://github.com/UBCO-Motorsports/Dyno-Project/issues?q=is%3Aclosed) |
 
-**Ready now.** [#1](https://github.com/UBCO-Motorsports/Dyno-Project/issues/1) power, [#2](https://github.com/UBCO-Motorsports/Dyno-Project/issues/2) torque, [#3](https://github.com/UBCO-Motorsports/Dyno-Project/issues/3) limits, [#4](https://github.com/UBCO-Motorsports/Dyno-Project/issues/4) log columns, [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) questions for the sub-teams.
+`board: ready now` is the current sprint, `board: up next` is next week's, and `board: later` is everything after. Within a column, take `difficulty: easy` before `moderate` before `hard`.
 
-**Up next.** [#6](https://github.com/UBCO-Motorsports/Dyno-Project/issues/6) reject bad inputs, [#7](https://github.com/UBCO-Motorsports/Dyno-Project/issues/7) calibration line, [#8](https://github.com/UBCO-Motorsports/Dyno-Project/issues/8) uncertainty, [#9](https://github.com/UBCO-Motorsports/Dyno-Project/issues/9) apply a calibration, [#10](https://github.com/UBCO-Motorsports/Dyno-Project/issues/10) one sample, [#20](https://github.com/UBCO-Motorsports/Dyno-Project/issues/20) log rate, [#22](https://github.com/UBCO-Motorsports/Dyno-Project/issues/22) valve tolerance, [#23](https://github.com/UBCO-Motorsports/Dyno-Project/issues/23) pedal clamp, [#26](https://github.com/UBCO-Motorsports/Dyno-Project/issues/26) readout text.
+Three more labels say why an issue matters:
 
-**Later.** Logs [#11](https://github.com/UBCO-Motorsports/Dyno-Project/issues/11)–[#14](https://github.com/UBCO-Motorsports/Dyno-Project/issues/14), profiles [#15](https://github.com/UBCO-Motorsports/Dyno-Project/issues/15)–[#16](https://github.com/UBCO-Motorsports/Dyno-Project/issues/16), the run state machine [#17](https://github.com/UBCO-Motorsports/Dyno-Project/issues/17)–[#19](https://github.com/UBCO-Motorsports/Dyno-Project/issues/19), hardware interfaces [#21](https://github.com/UBCO-Motorsports/Dyno-Project/issues/21), CAN [#24](https://github.com/UBCO-Motorsports/Dyno-Project/issues/24)–[#25](https://github.com/UBCO-Motorsports/Dyno-Project/issues/25), the session and window [#27](https://github.com/UBCO-Motorsports/Dyno-Project/issues/27)–[#28](https://github.com/UBCO-Motorsports/Dyno-Project/issues/28), heartbeat [#29](https://github.com/UBCO-Motorsports/Dyno-Project/issues/29), calibration record [#30](https://github.com/UBCO-Motorsports/Dyno-Project/issues/30).
+| Label | Meaning |
+| --- | --- |
+| `mvp` | Needed for the MVP spin on 26 November. These come first |
+| `validation` | Needed for the validation review on 3 December |
+| `stretch` | Only after the MVP is accepted. Never start one while an `mvp` issue is at risk |
+| `stakeholder feedback` | Someone asked for this at a Thursday review. Goes first in the next sprint |
 
-**Blocked on a person.** [#31](https://github.com/UBCO-Motorsports/Dyno-Project/issues/31) is the shop test. It stays here until Mechanical, Electrical, and the safety sign-off are on the issue. Do not spin the motor from a software task.
+**Blocked on a person.** [#31](https://github.com/UBCO-Motorsports/Dyno-Project/issues/31) is the first spin and [#47](https://github.com/UBCO-Motorsports/Dyno-Project/issues/47) is validation. They stay here until Mechanical, Electrical, and the safety owners have signed on the issue. Do not spin the motor from a software task.
 
 ## What we are building
 
@@ -61,7 +83,7 @@ Supporting goals from the proposal:
 - keep measurements calibrated, with a written uncertainty
 - keep a safe state available without relying on the laptop
 
-This repository is the supervisory software and the tested models behind it: the maths, the file formats, the run state machine, and the operator readouts. Firmware for a specific controller board starts only after these models and their interfaces are stable. The board has not been chosen.
+This repository is the supervisory software and the tested models behind it: the maths, the file formats, the run state machine, and the operator readouts. From S3 it also holds the controller firmware under `firmware/` ([#42](https://github.com/UBCO-Motorsports/Dyno-Project/issues/42)). The board is chosen by Electrical on 5 November ([#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37)).
 
 ## How the rig is split
 
@@ -87,7 +109,9 @@ The project is successful when the team can:
 7. Open, store, and review CSV logs, and load a procedure CSV to run a test.
 8. Quote a documented measurement uncertainty when a result is used to validate a motor or hardware change.
 
-Item 1 and the full-power run stay blocked until the safety sign-off issue is cleared. Everything before that is laptop work with fake sensors.
+Item 1 and any spinning test stay blocked until the safety sign-off issue is cleared. Everything before that is laptop work with fakes and the simulator.
+
+By 11 January the project delivers items 1, 2, 5 (valve set by hand), 6, 7 (logs), and 8, at low load. Item 3 follows once Owen and Alex say whether strain is a separate sensor. Item 4 (automated sweeps, holds, and lap replays) and loading the procedure CSV are stretch work, handed over to next term if unfinished.
 
 ## Facts we are building on
 
@@ -186,19 +210,7 @@ If the issue names a person to consult before hardware use, merging the laptop c
 
 ### Weekly report
 
-Every owner posts this on the issue before Sunday night, including midterm weeks, and including weeks where the only honest update is that the task was not started.
-
-```text
-## Weekly report — week of YYYY-MM-DD
-- Owner:
-- What I tried:
-- Tests (command and result):
-- Who I spoke to, and what they said:
-- Blockers:
-- Next week:
-```
-
-The first report is due Sunday 25 October 2026.
+Every member posts one comment on the pinned thread [#35](https://github.com/UBCO-Motorsports/Dyno-Project/issues/35) before Sunday night, including midterm weeks, and including weeks where the only honest update is that the task was not started. The template is in that issue. Its last line asks whether your issue will make its Thursday review: **yes**, **at risk**, or **no**. Saying "at risk" on Sunday is how the team gets time to help.
 
 ## Repository map
 
@@ -210,7 +222,7 @@ Code lives under `src/dyno/`. Tests live under `tests/`. New modules are added b
 | `torque.py` | `torque_nm(force_n, arm_length_m) -> float` | Torque |
 | `limits.py` | 150 N·m, 7000 rpm, 80 kW cap, 10 Hz strain floor | Limits |
 | `log_schema.py` | `LOG_COLUMNS` | Log columns |
-| `calibration.py` | Two-point line, apply, residual uncertainty, signed record | Calibration issues |
+| `calibration.py` | Least-squares fit through three or more points, apply, residuals, signed record | Calibration issues |
 | `sample.py` | One timestamped `Sample`, power from torque and speed | Sample record |
 | `log_csv.py` | Write, read, summarise, reject a bad log | Log issues |
 | `profile.py` | Procedure CSV and interpolation | Profile issues |
@@ -224,6 +236,12 @@ Code lives under `src/dyno/`. Tests live under `tests/`. New modules are added b
 | `readout.py` | Operator text and start/stop | Readout |
 | `operator_app.py` | Window over the readout | Window |
 | `watchdog.py` | Heartbeat timeout | Watchdog |
+| `rig_config.py` | `RigConfig` read from `rig.toml` | [#38](https://github.com/UBCO-Motorsports/Dyno-Project/issues/38) |
+| `link.py` | Laptop–controller messages; cases in `tests/contract/link_cases.json` | [#40](https://github.com/UBCO-Motorsports/Dyno-Project/issues/40) |
+| `simulator.py` | Motor and water-brake model behind the ports | [#41](https://github.com/UBCO-Motorsports/Dyno-Project/issues/41) |
+| `plot.py` | Torque and power against speed from a CSV | [#44](https://github.com/UBCO-Motorsports/Dyno-Project/issues/44) |
+| `run_metadata.py` | `<run>.meta.json` next to each CSV | [#46](https://github.com/UBCO-Motorsports/Dyno-Project/issues/46) |
+| `firmware/` | Controller loop, sensors, outputs, watchdog | [#42](https://github.com/UBCO-Motorsports/Dyno-Project/issues/42) |
 
 Shared shapes later issues must keep:
 
@@ -252,11 +270,11 @@ You need Python 3.11 or newer. Windows:
 
 ```powershell
 py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install pytest
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-The expected result on a fresh clone is one passing test, `test_package_imports`. Do not commit `.venv/`.
+Every test should pass on a fresh clone of `main`. Do not commit `.venv/`.
 
 ## Prior art
 
