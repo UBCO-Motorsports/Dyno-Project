@@ -1,5 +1,6 @@
 """Behaviour tests for the rig simulator (#41)."""
 
+import itertools
 import math
 
 import pytest
@@ -31,7 +32,7 @@ def _sim(**kwargs: float) -> DynoSimulator:
         k=_EXAMPLE_K,
         c=_EXAMPLE_C,
         J=_EXAMPLE_J,
-        **_kwargs,
+        **kwargs,
     )
 
 
@@ -144,23 +145,25 @@ def test_identical_inputs_give_identical_results():
 
 
 def test_after_safe_command_speed_only_falls():
+    # Safe valve stays partially open (example 0.3) so brake torque can spool the shaft down.
     sim = _sim()
-    run = TestRun(safe_valve_setpoint=0.0)
+    run = TestRun(safe_valve_setpoint=0.3)
     run.handle(RunEvent.ARM)
     run.handle(RunEvent.START)
-    sim.apply_command(run.command(_running_command(1.0, 0.3)))
+    sim.apply_command(run.command(_running_command(1.0, 0.5)))
     _settle(sim, steps=6000)
     rpm_before = sim.speed_rpm()
     assert rpm_before > 100.0
+    assert rpm_before < MAX_SPEED_RPM
 
     run.handle(RunEvent.STOP)
-    sim.apply_command(run.command(_running_command(1.0, 0.3)))
+    sim.apply_command(run.command(_running_command(1.0, 0.5)))
     falling: list[float] = [rpm_before]
     for _ in range(400):
         sim.step(_DT_S)
         falling.append(sim.speed_rpm())
 
     assert falling[-1] < falling[0]
-    for prev, curr in zip(falling, falling[1:], strict=True):
+    for prev, curr in itertools.pairwise(falling):
         assert curr <= prev + 1e-9
     assert run.state() is RunState.SAFE
