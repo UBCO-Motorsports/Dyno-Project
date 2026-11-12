@@ -1,8 +1,8 @@
 # Overnight agent queue
 
-Ordered list of **non-blocking** coding issues for the overnight agent. Rules: [`AGENTS.md`](../AGENTS.md).
+Ordered list of **non-blocking** coding issues for the overnight agent. Rules: [`AGENTS.md`](../AGENTS.md). Wiring: [`github-setup.md`](github-setup.md).
 
-An issue stays on this list while it has the `overnight-queue` label and there is no open PR that closes it. When a PR opens, remove `overnight-queue` from the issue and put `overnight-agent` on the PR. When the PR merges, the row is done.
+An issue stays on this list while it has the `overnight-queue` label and there is no open PR that closes it. Nightly (`ENABLE_OVERNIGHT_AGENT=true`) picks **one** row from the top. To run immediately instead, add `agent-now` (does not wait for cron). When a PR opens, remove `overnight-queue` / `agent-now` from the issue and put `overnight-agent` on the **draft** PR. When the PR merges, the row is done. If the agent is stuck, it adds `needs-human`.
 
 Skipped on purpose (not overnight work): field / stakeholder conversations (`#5`, `#37`), blocked shop work (`#31`, `#47`), firmware until the board is chosen (`#42`), stretch items, weekly reports (`#35`), handover writing (`#48`).
 

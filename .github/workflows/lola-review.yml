@@ -1,0 +1,131 @@
+# Lola: independent reviewer gate. Provider-agnostic orchestration.
+# Which model writes the review is selected by AGENT_PROVIDER (cursor|grok|claude).
+# See .github/agents/README.md and docs/github-setup.md.
+#
+# Opt in: gh variable set ENABLE_LOLA --body true
+# When disabled, this job still exits 0 so a required "lola-review" check does not freeze merges.
+
+name: Lola review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: lola-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lola-review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR: ${{ github.event.pull_request.number }}
+      AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
+    steps:
+      - name: Skip when Lola is disabled
+        if: vars.ENABLE_LOLA != 'true'
+        run: |
+          echo "ENABLE_LOLA is not true; lola-review check passes without reviewing."
+          echo "Provider would be: $AGENT_PROVIDER (set AGENT_PROVIDER + ENABLE_LOLA per docs/github-setup.md)."
+
+      - uses: actions/checkout@v4
+        if: vars.ENABLE_LOLA == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Wait for tests CI
+        id: ci
+        if: vars.ENABLE_LOLA == 'true'
+        run: bash scripts/agents/wait-for-tests.sh "$PR"
+
+      - name: Comment when CI is red
+        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok != 'true'
+        run: |
+          name=$(cat /tmp/ci-fail-name.txt 2>/dev/null || echo tests)
+          body=$(printf '%s\n' "**Verdict: CHANGES REQUESTED**" "" \
+            "CI is not green (\`$name\`). Lola does not review a red suite." \
+            "Re-run or fix tests, then push; Lola will run again." "" \
+            "Lola-Verdict: CHANGES")
+          gh pr review "$PR" --comment --body "$body"
+          gh pr edit "$PR" --add-label "review:changes" --remove-label "review:pass" || true
+          echo "::error::CI not green; Lola will not PASS."
+          exit 1
+
+      # ----- Provider: cursor | grok (Grokbot / Cursor Automation) -----
+      - name: Hand off to external Lola (cursor/grok)
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          (env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok')
+        run: |
+          prompt=".github/agents/prompts/lola-review.md"
+          body=$(printf '%s\n' \
+            "### Lola hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "" \
+            "CI is green. Run Lola with \`$prompt\` (and root \`AGENTS.md\`)." \
+            "Post **one comment review** and end with exactly:" \
+            "" \
+            '```' \
+            "Lola-Verdict: PASS" \
+            '```' \
+            "or" \
+            '```' \
+            "Lola-Verdict: CHANGES" \
+            '```' \
+            "" \
+            "Do not approve or request-changes. Actions will enforce the check.")
+          gh pr comment "$PR" --body "$body"
+
+      - name: Wait for external Lola-Verdict
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          (env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok')
+        run: bash scripts/agents/wait-for-lola-verdict.sh "$PR"
+
+      # ----- Provider: claude -----
+      - uses: anthropics/claude-code-action@v1
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          env.AGENT_PROVIDER == 'claude'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+          plugins: |
+            pr-review-toolkit@claude-plugins-official
+          claude_args: >-
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Read,Glob,Grep,Write,Task"
+          prompt: |
+            Follow the prompt file .github/agents/prompts/lola-review.md exactly.
+            Substitute $PR=${{ github.event.pull_request.number }} and $REPO=${{ github.repository }}.
+            Also write the single word PASS or CHANGES to review-verdict.txt for the gate
+            (in addition to the Lola-Verdict line in the PR comment).
+
+      - name: Map Claude verdict file if present
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          env.AGENT_PROVIDER == 'claude'
+        run: |
+          if [ -f review-verdict.txt ]; then
+            echo "Using review-verdict.txt from Claude"
+          else
+            bash scripts/agents/wait-for-lola-verdict.sh "$PR" || true
+          fi
+
+      - name: Enforce verdict
+        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok == 'true'
+        run: bash scripts/agents/enforce-lola-verdict.sh "$PR"

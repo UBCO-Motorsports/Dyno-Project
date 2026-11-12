@@ -1,0 +1,129 @@
+# Nightly: one overnight-queue issue. Provider via AGENT_PROVIDER (cursor|grok|claude).
+# Opt in: gh variable set ENABLE_OVERNIGHT_AGENT --body true
+# See .github/agents/README.md.
+
+name: Overnight agent nightly
+
+on:
+  schedule:
+    - cron: "17 10 * * *"   # 2:17 AM Pacific Standard Time (10:17 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: overnight-agent
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    if: vars.ENABLE_OVERNIGHT_AGENT == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+      AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      # ----- cursor | grok -----
+      - name: Hand off overnight pick to external agent
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          set -euo pipefail
+          n=$(gh issue list --state open --label overnight-queue --json number,labels --limit 100 \
+            | python3 -c '
+          import json, sys
+          skip = {"needs-human", "board: blocked", "field task", "difficulty: expert"}
+          issues = json.load(sys.stdin)
+          for it in issues:
+              names = {l["name"] for l in it.get("labels") or []}
+              if names & skip:
+                  continue
+              print(it["number"])
+              break
+          ')
+          if [ -z "$n" ]; then
+            echo NONE > overnight-picked.txt
+            echo "Queue empty."
+            exit 0
+          fi
+          echo "$n" > overnight-picked.txt
+          body=$(printf '%s\n' \
+            "### Overnight hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "" \
+            "Please implement issue #$n using:" \
+            "- \`.github/agents/prompts/overnight-agent.md\`" \
+            "- root \`AGENTS.md\`" \
+            "- queue order in \`docs/overnight-queue.md\`" \
+            "" \
+            "Open one **draft** PR (\`Closes #$n\`), label \`overnight-agent\`, remove \`overnight-queue\`." \
+            "If blocked, add \`needs-human\`.")
+          gh issue comment "$n" --body "$body"
+          echo "Handed off #$n to $AGENT_PROVIDER. Cursor/Grokbot must open the PR."
+
+      - name: External overnight — success after hand-off
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          picked=$(tr -d '[:space:]' < overnight-picked.txt 2>/dev/null || echo NONE)
+          echo "overnight-picked: $picked (external provider owns the PR)"
+
+      # ----- claude -----
+      - uses: actions/setup-python@v5
+        if: env.AGENT_PROVIDER == 'claude'
+        with:
+          python-version: "3.11"
+
+      - name: Language server for the LSP plugin
+        if: env.AGENT_PROVIDER == 'claude'
+        run: pip install pyright
+
+      - uses: anthropics/claude-code-action@v1
+        if: env.AGENT_PROVIDER == 'claude'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_PAT }}
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+            https://github.com/DietrichGebert/ponytail.git
+          plugins: |
+            ponytail@ponytail
+            security-guidance@claude-plugins-official
+            pyright-lsp@claude-plugins-official
+          claude_args: >-
+            --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
+          prompt: |
+            Follow .github/agents/prompts/overnight-agent.md exactly.
+            Substitute $REPO=${{ github.repository }}.
+
+      - name: Fail if Claude opened no PR
+        if: always() && env.AGENT_PROVIDER == 'claude'
+        run: |
+          set -euo pipefail
+          picked=$(tr -d '[:space:]' < overnight-picked.txt 2>/dev/null || echo MISSING)
+          echo "overnight-picked: $picked"
+          if [ "$picked" = "NONE" ]; then
+            echo "Queue empty; nothing to do."; exit 0
+          fi
+          if [ "$picked" = "MISSING" ] || ! printf '%s' "$picked" | grep -Eq '^[0-9]+$'; then
+            echo "::error::Agent did not write a valid overnight-picked.txt (got: $picked)"; exit 1
+          fi
+          n=$picked
+          if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number --jq 'length' | grep -qx '[1-9][0-9]*'; then
+            echo "PR found for #$n"; exit 0
+          fi
+          if gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName,number --jq "[.[] | select(.headRefName | startswith(\"issue-$n-\"))] | length" | grep -qx '[1-9][0-9]*'; then
+            echo "PR found by branch prefix for #$n"; exit 0
+          fi
+          if gh issue view "$n" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx needs-human; then
+            echo "No PR, but #$n was handed back with needs-human"; exit 0
+          fi
+          echo "::error::Overnight agent finished without a PR or needs-human for #$n"; exit 1
