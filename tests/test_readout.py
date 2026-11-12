@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from dyno.readout import OperatorSession, readout_text
-from dyno.run_state import RigCommand, RunEvent, RunState, TestRun
+from dyno.run_state import RigCommand, RunState, TestRun
 from dyno.sample import Sample
 
 
