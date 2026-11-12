@@ -86,3 +86,28 @@ def test_unknown_extra_key_is_rejected(tmp_path):
     path = _write_rig(tmp_path, VALID_MINIMAL + "\narm_lenght_m = 0.5\n")
     with pytest.raises(ValueError, match="arm_lenght_m"):
         load_rig_config(path)
+
+
+def test_inverted_pedal_a_limits_are_rejected(tmp_path):
+    body = VALID_MINIMAL.replace(
+        "[pedal_a]\nminimum_v = 0.5\nmaximum_v = 4.5",
+        "[pedal_a]\nminimum_v = 4.5\nmaximum_v = 0.5",
+    )
+    path = _write_rig(tmp_path, body)
+    with pytest.raises(ValueError, match="pedal_a"):
+        load_rig_config(path)
+
+
+def test_negative_arm_length_is_rejected(tmp_path):
+    path = _write_rig(tmp_path, VALID_MINIMAL.replace("arm_length_m = 0.5", "arm_length_m = -0.1"))
+    with pytest.raises(ValueError, match="arm_length_m"):
+        load_rig_config(path)
+
+
+def test_negative_heartbeat_timeout_is_rejected(tmp_path):
+    path = _write_rig(
+        tmp_path,
+        VALID_MINIMAL.replace("heartbeat_timeout_s = 0.25", "heartbeat_timeout_s = -0.1"),
+    )
+    with pytest.raises(ValueError, match="heartbeat_timeout_s"):
+        load_rig_config(path)
