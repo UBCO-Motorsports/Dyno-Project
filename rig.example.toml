@@ -1,0 +1,13 @@
+# EXAMPLE VALUES ONLY. Real values come from docs/open-questions.md.
+arm_length_m = 0.5
+pedal_released_v = 0.5
+safe_valve_setpoint = 0.0
+heartbeat_timeout_s = 0.25
+
+[pedal_a]
+minimum_v = 0.5
+maximum_v = 4.5
+
+[pedal_b]
+minimum_v = 0.25
+maximum_v = 2.25
