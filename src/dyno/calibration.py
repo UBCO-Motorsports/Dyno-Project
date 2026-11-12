@@ -23,3 +23,10 @@ def fit_calibration_line(
         raise ValueError("raw values must be distinct") from exc
 
     return gain, offset
+
+
+def apply_calibration(raw: float, gain: float, offset: float) -> float:
+    """engineering = gain * raw + offset."""
+    if not (math.isfinite(raw) and math.isfinite(gain) and math.isfinite(offset)):
+        raise ValueError("raw, gain, and offset must be finite numbers")
+    return gain * raw + offset
