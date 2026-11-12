@@ -243,17 +243,18 @@ const dayNum = (iso: string) =>
 const T0 = dayNum("2026-10-26");
 const T1 = dayNum("2027-01-14");
 
-type Kind = "mvp" | "validation" | "process" | "stretch" | "wait";
+type Kind = "mvp" | "validation" | "process" | "stretch" | "wait" | "done";
 type GanttItem = { lane: string; label: string; start: string; end: string; kind: Kind };
 
 const GANTT: GanttItem[] = [
-  { lane: "Process", label: "CI + protect main (#36)", start: "2026-10-29", end: "2026-11-02", kind: "mvp" },
-  { lane: "Process", label: "Answers from the sub-teams (#5)", start: "2026-10-29", end: "2026-11-03", kind: "mvp" },
+  { lane: "Process", label: "CI + protect main (#36) — done", start: "2026-10-29", end: "2026-11-02", kind: "done" },
+  { lane: "Process", label: "Agent factory / Lola /grok (#57 #58) — done", start: "2026-11-11", end: "2026-11-12", kind: "done" },
+  { lane: "Process", label: "Answers from the sub-teams (#5) — late", start: "2026-10-29", end: "2026-11-12", kind: "mvp" },
   { lane: "Process", label: "Weekly reports every Sunday (#35)", start: "2026-11-01", end: "2027-01-10", kind: "process" },
   { lane: "Process", label: "Handover document (#48)", start: "2027-01-04", end: "2027-01-11", kind: "process" },
 
-  { lane: "Laptop software", label: "Limits, columns, inputs, sample (#3 #4 #6 #10)", start: "2026-10-29", end: "2026-11-05", kind: "mvp" },
-  { lane: "Laptop software", label: "Calibration, CSV, state machine, pedal, config", start: "2026-11-06", end: "2026-11-12", kind: "mvp" },
+  { lane: "Laptop software", label: "Limits, columns, inputs, sample — done", start: "2026-10-29", end: "2026-11-11", kind: "done" },
+  { lane: "Laptop software", label: "Calibration, CSV, state machine, pedal, config (S2)", start: "2026-11-06", end: "2026-11-12", kind: "mvp" },
   { lane: "Laptop software", label: "Safe stop, session, window, manual set, plot", start: "2026-11-13", end: "2026-11-19", kind: "mvp" },
   { lane: "Laptop software", label: "Run summary and metadata (#13 #46)", start: "2026-11-27", end: "2026-12-03", kind: "validation" },
   { lane: "Laptop software", label: "Holds and sweeps from a profile (#15 #16 #19)", start: "2027-01-04", end: "2027-01-07", kind: "stretch" },
@@ -262,7 +263,7 @@ const GANTT: GanttItem[] = [
   { lane: "Simulator and integration", label: "End-to-end test on every merge (#45)", start: "2026-11-16", end: "2026-11-24", kind: "mvp" },
   { lane: "Simulator and integration", label: "Laptop against the real controller", start: "2026-11-20", end: "2026-11-24", kind: "mvp" },
 
-  { lane: "Controller and firmware", label: "Compare and choose the board (#37)", start: "2026-10-29", end: "2026-11-05", kind: "mvp" },
+  { lane: "Controller and firmware", label: "Compare and choose the board (#37) — late", start: "2026-10-29", end: "2026-11-12", kind: "mvp" },
   { lane: "Controller and firmware", label: "Parts shipping", start: "2026-11-06", end: "2026-11-12", kind: "wait" },
   { lane: "Controller and firmware", label: "Link messages (#40)", start: "2026-11-06", end: "2026-11-12", kind: "mvp" },
   { lane: "Controller and firmware", label: "Firmware loop + watchdog (#42)", start: "2026-11-13", end: "2026-11-23", kind: "mvp" },
@@ -326,10 +327,11 @@ function Gantt() {
   const chartBottom = y;
   const height = chartBottom + 26;
   const width = LABEL_W + CHART_W + 16;
-  const todayX = x("2026-10-28");
+  const todayX = x("2026-11-11");
   const endX = xEnd("2027-01-11");
 
   const barStyle = (k: Kind) => {
+    if (k === "done") return { fill: t.category.green, stroke: "none", dash: undefined };
     if (k === "mvp") return { fill: t.accent.primary, stroke: "none", dash: undefined };
     if (k === "validation") return { fill: t.category.green, stroke: "none", dash: undefined };
     if (k === "process") return { fill: t.fill.primary, stroke: "none", dash: undefined };
@@ -429,8 +431,8 @@ function GanttLegend() {
   );
   return (
     <Row gap={16} wrap align="center">
-      {item(swatch(t.accent.primary), "MVP path (by 26 Nov)")}
-      {item(swatch(t.category.green), "Validation (by 3 Dec)")}
+      {item(swatch(t.category.green), "Done on main (as of 11 Nov)")}
+      {item(swatch(t.accent.primary), "MVP path still ahead (by 26 Nov)")}
       {item(swatch(t.fill.primary), "Reporting and handover")}
       {item(swatch("", t.accent.primary), "Stretch, only after the MVP")}
       {item(swatch("", t.text.tertiary), "Waiting, or only if needed")}
@@ -522,10 +524,10 @@ const ARCH_EDGES: DEdge[] = [
 const LAYERS: Array<{ name: string; modules: Array<[string, Tone]> }> = [
   { name: "Operator", modules: [["readout.py", "open"], ["operator_app.py", "open"]] },
   { name: "Run logic", modules: [["run_state.py", "open"], ["runner.py", "stretch"], ["watchdog.py", "open"]] },
-  { name: "Data", modules: [["log_schema.py", "review"], ["log_csv.py", "open"], ["summary.py", "open"], ["profile.py", "stretch"], ["plot.py", "new"], ["run_metadata.py", "new"]] },
+  { name: "Data", modules: [["log_schema.py", "done"], ["log_csv.py", "open"], ["summary.py", "open"], ["profile.py", "stretch"], ["plot.py", "new"], ["run_metadata.py", "new"]] },
   {
     name: "Measurement maths",
-    modules: [["power.py", "done"], ["torque.py", "done"], ["limits.py", "active"], ["calibration.py", "open"], ["sample.py", "open"], ["timing.py", "stretch"]],
+    modules: [["power.py", "done"], ["torque.py", "done"], ["limits.py", "done"], ["sample.py", "done"], ["calibration.py", "active"], ["timing.py", "stretch"]],
   },
   { name: "Hardware boundary", modules: [["ports.py", "open"], ["pedal.py", "open"], ["rig_config.py", "new"], ["link.py", "new"], ["simulator.py", "new"], ["valve.py", "stretch"]] },
   { name: "Controller", modules: [["firmware/ (#42)", "new"], ["link_cases.json", "new"]] },
@@ -572,14 +574,14 @@ const STRETCH_IDS = new Set(["14", "15", "16", "19", "20", "22", "49", "50"]);
 const ISSUES: IssueNode[] = [
   { id: "1", label: "#1 Power", tone: "done" },
   { id: "2", label: "#2 Torque", tone: "done" },
-  { id: "3", label: "#3 Limits", tone: "active" },
-  { id: "4", label: "#4 Log columns", tone: "review" },
-  { id: "5", label: "#5 Open questions", tone: "active" },
-  { id: "6", label: "#6 Reject bad inputs", tone: "open" },
-  { id: "7", label: "#7 Calibration fit", tone: "open" },
+  { id: "3", label: "#3 Limits", tone: "done" },
+  { id: "4", label: "#4 Log columns", tone: "done" },
+  { id: "5", label: "#5 Open questions", tone: "blocked" },
+  { id: "6", label: "#6 Reject bad inputs", tone: "done" },
+  { id: "7", label: "#7 Calibration fit", tone: "active" },
   { id: "8", label: "#8 Calibration error", tone: "open" },
   { id: "9", label: "#9 Apply calibration", tone: "open" },
-  { id: "10", label: "#10 Sample record", tone: "open" },
+  { id: "10", label: "#10 Sample record", tone: "done" },
   { id: "11", label: "#11 Write CSV", tone: "open" },
   { id: "12", label: "#12 Read CSV", tone: "open" },
   { id: "13", label: "#13 Summarise", tone: "open" },
@@ -604,8 +606,8 @@ const ISSUES: IssueNode[] = [
 ];
 
 const ADDED: IssueNode[] = [
-  { id: "36", label: "#36 CI + protect main", tone: "new" },
-  { id: "37", label: "#37 Choose controller", tone: "new" },
+  { id: "36", label: "#36 CI + protect main", tone: "done" },
+  { id: "37", label: "#37 Choose controller", tone: "blocked" },
   { id: "38", label: "#38 Rig config", tone: "new" },
   { id: "39", label: "#39 Pedal pair", tone: "new" },
   { id: "40", label: "#40 Link messages", tone: "new" },
@@ -1064,13 +1066,16 @@ export default function DynoArchitectureReview() {
       </Stack>
 
       <Stack gap={8}>
-        <H2>This sprint (S1, ends Thursday 5 November)</H2>
-        <Text>1. #36 (one hour): turn on CI and protect main, so nothing else lands untested.</Text>
-        <Text>2. #5: two people send the questions by Thursday 29 Oct. Answers are due Tuesday 3 November.</Text>
-        <Text>3. #37: compare two or three boards and bring the table to Electrical before Thursday. The project lead orders on Friday 6 Nov.</Text>
-        <Text>4. Merge PR 34 (#4), finish #3, then take #6 and #10.</Text>
-        <Text>5. The most experienced members start #21 and #41 early; they are the longest laptop-side chain.</Text>
-        <Text>6. Thursday 5 Nov: the project lead agrees the MVP scope above, in a comment on #35.</Text>
+        <H2>This sprint (S2, ends Thursday 12 November)</H2>
+        <Text>
+          S1 laptop coding is on main (#1–#4, #6, #10, #36). Agent factory (#57/#58) can take overnight-queue issues with
+          label agent-now or /grok now.
+        </Text>
+        <Text>1. Chase #5 answers and #37 board choice — both are late and block firmware (#42).</Text>
+        <Text>2. Calibration chain: #7 fit → #9 apply → #8 residuals (synthetic points only).</Text>
+        <Text>3. #11 write CSV (Sample is ready); #23 pedal clamp; #26 readout text.</Text>
+        <Text>4. Start #17 state machine and #21 ports/fakes — longest laptop chains into the simulator.</Text>
+        <Text>5. Thursday 12 Nov: Owen/Alex and Electrical on dead-weight procedure, link messages, pedal voltages.</Text>
       </Stack>
 
       <Divider />
@@ -1081,8 +1086,9 @@ export default function DynoArchitectureReview() {
       </Callout>
 
       <Row gap={32} wrap>
-        <Stat value="3" label="Controller issues (were 0)" tone="success" />
-        <Stat value="0 of 18" label="Open questions answered" tone="warning" />
+        <Stat value="7" label="Coding issues on main" tone="success" />
+        <Stat value="14 days" label="Until MVP review (26 Nov)" tone="warning" />
+        <Stat value="#5 / #37" label="Still waiting on people" tone="danger" />
         <Stat value="#35" label="Pinned weekly report thread" />
       </Row>
 
@@ -1095,10 +1101,10 @@ export default function DynoArchitectureReview() {
         <ModuleLayers />
         <Legend
           items={[
-            ["done", "Merged"],
-            ["review", "In review (PR 34)"],
-            ["active", "In progress"],
-            ["open", "Planned in an original issue"],
+            ["done", "Merged on main"],
+            ["active", "S2 focus (calibration next)"],
+            ["open", "Planned, not started"],
+            ["blocked", "Waiting on people (#5, #37, shop)"],
             ["new", "Added 28 Oct"],
             ["stretch", "Stretch"],
           ]}
@@ -1139,15 +1145,14 @@ export default function DynoArchitectureReview() {
               donut
               size={190}
               data={[
-                { label: "Merged", value: 2, tone: "success" },
-                { label: "Pull request open", value: 1, tone: "info" },
-                { label: "In progress", value: 2, tone: "warning" },
-                { label: "Not started", value: 39, tone: "neutral" },
-                { label: "Gated on sign-off", value: 2, tone: "danger" },
+                { label: "Merged", value: 7, tone: "success" },
+                { label: "S2 next / open", value: 35, tone: "neutral" },
+                { label: "Waiting on people", value: 2, tone: "warning" },
+                { label: "Gated on shop sign-off", value: 2, tone: "danger" },
               ]}
             />
             <Text size="small" tone="tertiary">
-              Count of 46 work issues by state. Source: GitHub, 28 Oct 2026.
+              Count of ~46 work issues. Merged: #1–#4, #6, #10, #36. Waiting: #5, #37. Gated: #31, #47. Source: GitHub, 11 Nov 2026.
             </Text>
           </Stack>
         </Grid>

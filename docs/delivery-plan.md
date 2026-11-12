@@ -2,6 +2,20 @@
 
 The project ends on **Monday 11 January 2027**. This page is the schedule: what has to work by when, who checks it, and what happens if something slips. New to the project? Read [docs/README.md](README.md) first; it explains the words used here.
 
+**Last progress update: Wednesday 11 November 2026** (after PRs [#32]–[#34], [#51]–[#58], [#60]).
+
+## Where we are now
+
+| Area | Status |
+| --- | --- |
+| **S1 coding (due 5 Nov)** | Done on `main`: power [#1], torque [#2], limits [#3], log columns [#4], reject bad inputs [#6], sample record [#10], CI [#36] |
+| **S1 people / hardware** | Still open: open questions [#5], controller board choice [#37] — these block firmware [#42] and invent-nothing rules |
+| **Process** | Agents and Lola wired ([#57], [#58]); overnight queue and `AGENTS.md` on `main`; ask Grok with label `agent-now` or `/grok now` |
+| **S2 (due Thu 12 Nov)** | In progress — next laptop work: calibration [#7]/[#9]/[#8], CSV write [#11], state machine [#17], ports [#21], pedal [#23]/[#39], readout [#26], rig config [#38], link [#40] |
+| **MVP date** | Still **Thu 26 Nov** — not slipped; S2 review is the next gate |
+
+Closed coding issues that landed as modules under `src/dyno/`: `power.py`, `torque.py`, `limits.py`, `log_schema.py`, `sample.py` (plus CI/agent workflows, not product maths).
+
 ## The short version
 
 | Date | What |
@@ -24,13 +38,14 @@ gantt
     todayMarker off
 
     section Process
-    CI and protect main                 :crit, 2026-10-29, 2026-11-03
-    Answers from the sub-teams          :crit, 2026-10-29, 2026-11-04
+    CI and protect main                 :done, 2026-10-29, 2026-11-03
+    Agent factory (Lola, /grok)         :done, 2026-11-11, 2026-11-12
+    Answers from the sub-teams          :crit, active, 2026-10-29, 2026-11-12
     Handover document                   :2027-01-04, 2027-01-12
 
     section Laptop software
-    Limits, columns, inputs, sample     :crit, 2026-10-29, 2026-11-06
-    Calibration, CSV, state machine     :crit, 2026-11-06, 2026-11-13
+    Limits, columns, inputs, sample     :done, 2026-10-29, 2026-11-12
+    Calibration, CSV, state machine     :crit, active, 2026-11-06, 2026-11-13
     Safe stop, screen, manual set, plot :crit, 2026-11-13, 2026-11-20
     Run summary and metadata            :2026-11-27, 2026-12-04
     Stretch - holds and sweeps          :2027-01-04, 2027-01-08
@@ -40,7 +55,7 @@ gantt
     End-to-end test                     :crit, 2026-11-16, 2026-11-25
 
     section Controller
-    Choose the board                    :crit, 2026-10-29, 2026-11-06
+    Choose the board                    :crit, active, 2026-10-29, 2026-11-12
     Parts shipping                      :2026-11-06, 2026-11-13
     Link messages                       :crit, 2026-11-06, 2026-11-13
     Firmware and watchdog               :crit, 2026-11-13, 2026-11-24
@@ -51,10 +66,10 @@ gantt
     Bench drills and sign-off           :crit, 2026-11-23, 2026-11-25
     MVP low-load spin                   :milestone, crit, 2026-11-25, 0d
     Validation runs and report          :2026-11-27, 2026-12-04
-    Exams and break                     :done, 2026-12-04, 2027-01-04
+    Exams and break                     :2026-12-04, 2027-01-04
 
     section Reviews
-    S1 review                           :milestone, 2026-11-05, 0d
+    S1 review                           :milestone, done, 2026-11-05, 0d
     S2 review                           :milestone, 2026-11-12, 0d
     S3 simulator demo                   :milestone, 2026-11-19, 0d
     MVP review                          :milestone, 2026-11-26, 0d
@@ -63,7 +78,7 @@ gantt
     Project ends                        :milestone, 2027-01-11, 0d
 ```
 
-Red bars are on the path to the MVP. If one of them slips, the MVP date slips.
+Red bars are on the path to the MVP. If one of them slips, the MVP date slips. Grey/done bars are already finished on `main`.
 
 ## Sprints and stakeholder reviews
 
@@ -71,9 +86,9 @@ Each review is short: show what works, and the named person decides. If they say
 
 | # | When | Sprint | What works at the end | Who reviews | Decision |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Tue 3 Nov | Checkpoint | Answers merged ([#5]) | Owen and Alex, Electrical, Mechanical, safety owners | Real answers, or a promised date for each |
-| 2 | Thu 5 Nov | S1 | CI on; limits, log columns, bad inputs, sample record; boards compared | Project lead; Electrical | Agree the MVP scope; pick the board, order Fri 6 Nov |
-| 3 | Thu 12 Nov | S2 | Calibration fit, CSV writer, state machine, interfaces, pedal pair, rig config, link messages | Owen and Alex; Electrical | Approve the dead-weight procedure, the link messages, and the pedal voltages |
+| 1 | Tue 3 Nov | Checkpoint | Answers merged ([#5]) | Owen and Alex, Electrical, Mechanical, safety owners | Real answers, or a promised date for each — **still open; chase in person** |
+| 2 | Thu 5 Nov | S1 | CI on; limits, log columns, bad inputs, sample record; boards compared | Project lead; Electrical | **Coding done.** Board pick ([#37]) and answers ([#5]) carried into S2 |
+| 3 | Thu 12 Nov | S2 | Calibration fit, CSV writer, state machine, interfaces, pedal pair, rig config, link messages | Owen and Alex; Electrical | Approve the dead-weight procedure, the link messages, and the pedal voltages — **next review** |
 | 4 | Thu 19 Nov | S3 | Whole MVP flow on the simulator; controller reads the load cell; bench calibration | Project lead and operators; Owen and Alex | Screen feedback; sign the calibration; rig ready, or switch to the bench fallback |
 | 5 | Mon 23 – Tue 24 Nov | Checkpoint | Bench drills: unplug the USB cable, press the E-stop | Mechanical and Electrical safety owners | Written sign-off on [#31] |
 | 6 | Thu 26 Nov | S4 | **MVP:** first low-load spin on Wed 25 Nov, logged and plotted | Project lead, Electrical, Owen and Alex | Logged power matches a hand calculation: MVP accepted? |
@@ -88,9 +103,9 @@ The exam period is assumed to be 4 December to 3 January. Check it against the r
 
 GitHub milestones match these sprints and carry the due dates. Each issue starts with a **Schedule** line saying the same thing.
 
-**S1 · due Thu 5 Nov.** [#36] CI (1 hour), [#5] questions (due Tue 3 Nov), [#37] controller board, [#3] limits, [#4] log columns, [#6] bad inputs, [#10] sample record.
+**S1 · due Thu 5 Nov.** ~~[#36] CI~~, ~~[#3] limits~~, ~~[#4] log columns~~, ~~[#6] bad inputs~~, ~~[#10] sample record~~ (merged). Still open: [#5] questions, [#37] controller board.
 
-**S2 · due Thu 12 Nov.** [#7] calibration fit, [#9] apply calibration, [#8] calibration error, [#11] write CSV, [#17] state machine, [#21] interfaces, [#23] pedal clamp, [#26] readout text, [#38] rig config, [#39] pedal pair, [#40] link messages.
+**S2 · due Thu 12 Nov (current).** [#7] calibration fit, [#9] apply calibration, [#8] calibration error, [#11] write CSV, [#17] state machine, [#21] interfaces, [#23] pedal clamp, [#26] readout text, [#38] rig config, [#39] pedal pair, [#40] link messages. Plus finish [#5] / [#37] from S1.
 
 **S3 · due Thu 19 Nov.** [#12] read CSV, [#18] safe command, [#27] operator session, [#28] window, [#29] heartbeat, [#30] calibration record, [#41] simulator, [#43] manual controls, [#44] plot.
 
@@ -119,7 +134,8 @@ flowchart LR
 
 | Test layer | When | What it catches |
 | --- | --- | --- |
-| Unit tests (pytest) | Every pull request, on CI ([#36]) | Wrong maths, units, rejected inputs |
+| Unit tests (pytest) | Every pull request, on CI ([#36] done) | Wrong maths, units, rejected inputs |
+| Lola review | Every pull request when `ENABLE_LOLA=true` ([#57]) | Change does not match the issue / tautological tests |
 | Shared message tests ([#40]) | Every pull request, in Python and in firmware | Laptop and controller disagreeing |
 | Simulator end-to-end ([#45]) | Every pull request | Pieces that do not fit together |
 | Thursday demo | Every week | Building the wrong thing |
