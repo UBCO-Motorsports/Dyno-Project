@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -6,7 +6,7 @@ from dyno.calibration import format_calibration_record
 
 RAW = [0, 1, 2]
 REFERENCE = [0, 1, 3]
-WHEN_UTC = datetime(2026, 11, 12, 18, 0, 0, tzinfo=timezone.utc)
+WHEN_UTC = datetime(2026, 11, 12, 18, 0, 0, tzinfo=UTC)
 
 
 def test_record_contains_required_fields_and_hand_solved_values():
