@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from dyno.calibration import fit_calibration_line
+from dyno.calibration import apply_calibration, fit_calibration_line
 
 
 def test_points_on_a_line_give_that_line():
@@ -36,3 +36,17 @@ def test_identical_raw_values_are_rejected():
 def test_non_finite_points_are_rejected():
     with pytest.raises(ValueError, match="finite"):
         fit_calibration_line([0, math.nan, 2], [0, 1, 2])
+
+
+def test_apply_uses_gain_and_offset():
+    assert apply_calibration(raw=4, gain=2, offset=0.5) == pytest.approx(8.5)
+
+
+def test_apply_matches_a_fitted_line():
+    gain, offset = fit_calibration_line([0, 10, 20], [0, 25, 50])
+    assert apply_calibration(raw=4, gain=gain, offset=offset) == pytest.approx(10)
+
+
+def test_apply_rejects_non_finite_numbers():
+    with pytest.raises(ValueError, match="finite"):
+        apply_calibration(raw=math.nan, gain=1, offset=0)
