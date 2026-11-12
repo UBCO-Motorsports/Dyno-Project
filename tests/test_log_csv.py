@@ -1,7 +1,9 @@
 import csv
 from datetime import UTC, datetime
 
-from dyno.log_csv import write_log
+import pytest
+
+from dyno.log_csv import read_log, write_log
 from dyno.log_schema import LOG_COLUMNS
 from dyno.sample import Sample
 
@@ -56,3 +58,63 @@ def test_values_line_up_with_their_headers(tmp_path):
     assert row["valve_setpoint"] == "0.2"
     assert row["run_state"] == "running"
     assert row["timestamp_utc"] == "2026-10-19T22:00:00+00:00"
+
+
+def test_round_trip(tmp_path):
+    original = [
+        Sample(
+            timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
+            torque_nm=10,
+            speed_rpm=1000,
+            strain=0.001,
+            valve_setpoint=0.2,
+            pedal_voltage_a=0.5,
+            pedal_voltage_b=0.4,
+            run_state="running",
+        )
+    ]
+    path = tmp_path / "run.csv"
+    write_log(path, original)
+    loaded = read_log(path)
+    assert loaded == original
+
+
+def test_loaded_power_matches_the_formula(tmp_path):
+    original = Sample(
+        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
+        torque_nm=10,
+        speed_rpm=1000,
+        strain=0.0,
+        valve_setpoint=0.0,
+        pedal_voltage_a=0.0,
+        pedal_voltage_b=0.0,
+        run_state="running",
+    )
+    path = tmp_path / "run.csv"
+    write_log(path, [original])
+    # 10 N·m at 1000 rpm ≈ 1.0471975511965976 kW (README); property must match after read
+    assert read_log(path)[0].power_kw == 1.0471975511965976
+    assert read_log(path)[0].power_kw == original.power_kw
+
+
+def test_tampered_power_cell_raises(tmp_path):
+    sample = Sample(
+        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
+        torque_nm=10,
+        speed_rpm=1000,
+        strain=0.0,
+        valve_setpoint=0.0,
+        pedal_voltage_a=0.0,
+        pedal_voltage_b=0.0,
+        run_state="running",
+    )
+    path = tmp_path / "run.csv"
+    write_log(path, [sample])
+    lines = path.read_text(encoding="utf-8").split("\n")
+    fields = lines[1].split(",")
+    power_idx = LOG_COLUMNS.index("power_kw")
+    fields[power_idx] = "0"
+    lines[1] = ",".join(fields)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="power"):
+        read_log(path)
