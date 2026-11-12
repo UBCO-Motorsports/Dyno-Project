@@ -1,5 +1,7 @@
 # Dyno Software Implementation Plan
 
+> **Schedule changed 28 October 2026.** The deadline is 11 January 2027. Dates, sprints, the MVP scope, and issues #35–#50 are in [`docs/delivery-plan.md`](../../delivery-plan.md). The calibration tasks (#7, #8, #9, #30) now fit three or more points by least squares; the GitHub issues are the current version of those tasks.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the UBCO Motorsports team a tested laptop-side dyno program that measures torque and speed, computes power, logs CSV runs, plays pedal and load profiles, and drops to a safe command if the laptop stops.

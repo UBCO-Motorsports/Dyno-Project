@@ -1,5 +1,7 @@
 # Open questions
 
+Answers are due **Tuesday 3 November 2026** (#5). The controller order on 6 November and the first spin on 25 November depend on them.
+
 The software issues can start without these answers. Hardware, limits that protect the rig, and any number marked TBC in an issue cannot be treated as final until the person named here has answered.
 
 Write the answer in the **Answer** line. If they do not know yet, write `still open`, the date, and who you asked.
@@ -10,7 +12,7 @@ Confirmed already, so do not re-open these unless that person changes them:
 - Maximum speed is 7000 rpm.
 - Power is capped below 80 kW. The calculator must not hide a reading above that cap.
 - The absorber is direct-coupled by a shaft. The original proposal mentioned a chain drive; that is not the working assumption.
-- Load control is automated: sweeps, holds, and lap replays.
+- Load control is automated: sweeps, holds, and lap replays. For the 11 January deadline, the MVP sets the valve by hand and automation is stretch work (`docs/delivery-plan.md`).
 - Strain is sampled at 10 Hz or faster.
 - The log rate follows the slowest input. Speed arrives at the VCU message rate.
 - The energy source is the vehicle tractive battery, not a bench supply.
@@ -94,6 +96,20 @@ Software tests inject this as `safe_valve_setpoint`. The physical meaning has to
 - **Answer:**
 - **Who / date:**
 
+### 16. What moves the water valve, and what signal does it take?
+
+For example a servo (PWM), a motorised valve (0–10 V or 4–20 mA), or a hand valve only. The controller board (#37) has to provide that output.
+
+- **Answer:**
+- **Who / date:**
+
+### 17. On what date will the rig be mechanically ready for a low-load spin?
+
+Motor mounted and coupled, load cell on the reaction arm, water supply and drain connected, guarding in place. The MVP spin is planned for Wednesday 25 November. If the rig will not be ready by Thursday 19 November, the team switches to the bench fallback in `docs/delivery-plan.md`.
+
+- **Answer:**
+- **Who / date:**
+
 ## Safety sign-off
 
 Software cannot replace guarding, the emergency stop, or high-voltage isolation.
@@ -112,7 +128,16 @@ Software cannot replace guarding, the emergency stop, or high-voltage isolation.
 
 ### 15. Is there a sample procedure CSV from a real session?
 
-The software schema is fixed in the profile issues. If the real file differs, the parser changes only after this sample is attached to the issue.
+The software schema is fixed in the profile issues. If the real file differs, the parser changes only after this sample is attached to the issue. Profiles are stretch work, so this is not needed before the MVP.
+
+- **Answer:**
+- **Who / date:**
+
+## People — ask the project lead
+
+### 18. Who are the operators, and who signs the MVP and the validation report?
+
+The operators try the screen on the simulator on Thursday 19 November and run the spin on Wednesday 25 November.
 
 - **Answer:**
 - **Who / date:**
