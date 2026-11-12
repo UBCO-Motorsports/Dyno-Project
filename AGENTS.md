@@ -82,7 +82,7 @@ Lola is the automated review gate in [`.github/workflows/lola-review.yml`](.gith
 
 - Trigger: pull request opened / synchronized / reopened / ready for review (same-repo branches only).
 - Lola waits for the `tests` checks. If CI failed or timed out: comment with the failing job name, set CHANGES, do not rewrite the branch.
-- If CI passed: review the diff against the linked issue and this file, then post a single **comment** review (never `--approve`).
+- If CI passed: review the diff against the linked issue and this file, then post a single **conversation comment** via `gh pr comment` (never `--request-changes` from the prompt). On `PASS`, Actions may `gh pr review --approve` as `PR_ASSIGNEE` via `GH_PAT`.
 
 ### What Lola checks
 
@@ -98,7 +98,7 @@ Lola is the automated review gate in [`.github/workflows/lola-review.yml`](.gith
 ### What Lola must not do
 
 - Merge the PR.
-- Approve (`gh pr review --approve`) — humans only.
+- Approve from the Lola prompt itself — humans (or Actions via their `GH_PAT` / `PR_ASSIGNEE`) approve on PASS.
 - Approve when CI is red.
 - Treat its own follow-up commits as reviewed without a new CI + Lola run.
 - Ask for style-only nits (import order, comment taste) when behaviour and tests are sound.

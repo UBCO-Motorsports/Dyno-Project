@@ -47,7 +47,7 @@ gh variable set AGENT_PROVIDER --body claude   # Claude Code Action inside GitHu
 
 Prompts stay the same either way: `.github/agents/prompts/*.md`.
 
-**Lola contract (every provider):** one comment review + a line `Lola-Verdict: PASS` or `Lola-Verdict: CHANGES`. Never approve / request-changes.
+**Lola contract (every provider):** one `gh pr comment` + a line `Lola-Verdict: PASS` or `Lola-Verdict: CHANGES`. The prompt never `--request-changes`; on PASS, Actions approves as `PR_ASSIGNEE` via `GH_PAT`.
 
 ## Ask Grok to work now
 
@@ -76,15 +76,18 @@ That posts the hand-off comment (cursor/grok) or runs Claude in Actions. Your Gr
 gh variable set AGENT_PROVIDER --body cursor
 gh variable set ENABLE_LOLA --body false
 gh variable set ENABLE_OVERNIGHT_AGENT --body false
+gh variable set PR_ASSIGNEE --body KitheK   # PRs assigned to you; Lola comments/approves as you via GH_PAT
 ```
 
 ## Step 2. Secrets
 
-**Always useful:** fine-grained `GH_PAT` (Contents, Pull requests, Issues = read/write) so agent pushes retrigger CI/Lola:
+**Required for “as you” attribution:** fine-grained `GH_PAT` for **your** account (Contents, Pull requests, Issues = read/write). Agent PRs, Lola comments, and PASS approvals then appear as **you**, not `github-actions`. Conversation updates use `gh pr comment` / `gh issue comment`.
 
 ```powershell
 gh secret set GH_PAT
 ```
+
+Note: GitHub may block approving a PR you also authored with the same account. If that happens, open the PR in the UI and click Approve as yourself — you are already the assignee/reviewer.
 
 **Only if `AGENT_PROVIDER=claude`:**
 
