@@ -84,7 +84,10 @@ def _read_pedal_table(section: str, table: object) -> PedalLimits:
 
     minimum_v = _require_float(f"{section}.minimum_v", table["minimum_v"])
     maximum_v = _require_float(f"{section}.maximum_v", table["maximum_v"])
-    return PedalLimits(minimum_v=minimum_v, maximum_v=maximum_v)
+    try:
+        return PedalLimits(minimum_v=minimum_v, maximum_v=maximum_v)
+    except ValueError as exc:
+        raise ValueError(section) from exc
 
 
 def _require_float(key: str, value: object) -> float:
