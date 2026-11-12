@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -7,16 +7,16 @@ from dyno.sample import Sample
 
 
 def _sample(**overrides) -> Sample:
-    values = dict(
-        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=timezone.utc),
-        torque_nm=10,
-        speed_rpm=1000,
-        strain=0.001,
-        valve_setpoint=0.2,
-        pedal_voltage_a=0.5,
-        pedal_voltage_b=0.5,
-        run_state="running",
-    )
+    values = {
+        "timestamp_utc": datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
+        "torque_nm": 10,
+        "speed_rpm": 1000,
+        "strain": 0.001,
+        "valve_setpoint": 0.2,
+        "pedal_voltage_a": 0.5,
+        "pedal_voltage_b": 0.5,
+        "run_state": "running",
+    }
     values.update(overrides)
     return Sample(**values)
 
