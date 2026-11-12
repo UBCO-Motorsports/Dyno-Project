@@ -1,0 +1,32 @@
+# Assign every same-repo PR to the human owner (PR_ASSIGNEE, default KitheK).
+# Uses GH_PAT so the assignee/comment actions appear as that user, not github-actions.
+
+name: Assign PR owner
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  assign:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+      PR: ${{ github.event.pull_request.number }}
+      PR_ASSIGNEE: ${{ vars.PR_ASSIGNEE || 'KitheK' }}
+    steps:
+      - name: Assign PR to owner
+        run: |
+          set -euo pipefail
+          echo "Assigning PR #$PR to $PR_ASSIGNEE"
+          gh pr edit "$PR" --add-assignee "$PR_ASSIGNEE"
+          # Overnight / agent PRs: also request the owner as reviewer so they can approve as themselves
+          if gh pr view "$PR" --json labels --jq '.labels[].name' | grep -qx overnight-agent; then
+            gh pr edit "$PR" --add-reviewer "$PR_ASSIGNEE" || true
+          fi
