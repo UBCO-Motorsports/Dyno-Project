@@ -1,5 +1,6 @@
 from dyno.torque import torque_nm
 
+
 def test_torque_is_force_times_arm_length():
     # Example arm. Not the car's arm.
     assert torque_nm(force_n=100, arm_length_m=0.25) == 25
