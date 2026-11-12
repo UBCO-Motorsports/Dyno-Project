@@ -49,6 +49,17 @@ Prompts stay the same either way: `.github/agents/prompts/*.md`.
 
 **Lola contract (every provider):** one comment review + a line `Lola-Verdict: PASS` or `Lola-Verdict: CHANGES`. Never approve / request-changes.
 
+## Ask Grok to work now
+
+| Method | How |
+| --- | --- |
+| **Actions button** | [Coding agent workflow](https://github.com/UBCO-Motorsports/Dyno-Project/actions/workflows/agent.yml) → **Run workflow** → issue number |
+| **Comment** | On the issue, post `/grok` or `/grok now` (OWNER/MEMBER/COLLABORATOR) |
+| **Label** | Add `agent-now` |
+| **CLI** | `gh workflow run "Coding agent" -f issue_number=10` |
+
+That posts the hand-off comment (cursor/grok) or runs Claude in Actions. Your Grokbot/Cursor automation should watch for comments containing `grok-work-now` or the hand-off heading.
+
 ## Labels
 
 | Label | On | Meaning |

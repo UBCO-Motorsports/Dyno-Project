@@ -14,6 +14,21 @@ Switch:
 gh variable set AGENT_PROVIDER --body cursor   # or grok, or claude
 ```
 
+## Ask Grok to work **now**
+
+Three equivalent triggers (all run the [Coding agent](../workflows/agent.yml) workflow):
+
+1. **Actions button:** [Run Coding agent](https://github.com/UBCO-Motorsports/Dyno-Project/actions/workflows/agent.yml) → **Run workflow** → type the issue number.
+2. **Issue comment:** type `/grok` or `/grok now` on the issue (members only).
+3. **Label:** add `agent-now` on the issue.
+
+```powershell
+# From a terminal
+gh workflow run "Coding agent" -f issue_number=10
+# or
+gh issue comment 10 --body "/grok now"
+```
+
 ## Machine contract for Lola
 
 Whatever provider writes the review must:
