@@ -98,12 +98,14 @@ def test_ports_module_has_no_hardware_imports():
             assert root not in banned, f"banned import from {node.module}"
 
 
-def test_protocols_are_typing_protocols():
-    for protocol in (ForceSource, StrainSource, SpeedSource, Valve, PedalOutput):
-        assert protocol.__name__ in {
-            "ForceSource",
-            "StrainSource",
-            "SpeedSource",
-            "Valve",
-            "PedalOutput",
-        }
+def test_protocol_public_methods_match_issue():
+    expected = {
+        ForceSource: {"force_n"},
+        StrainSource: {"raw"},
+        SpeedSource: {"speed_rpm"},
+        Valve: {"set_setpoint", "position"},
+        PedalOutput: {"set_voltages", "voltages"},
+    }
+    for protocol, methods in expected.items():
+        public = {n for n in vars(protocol) if not n.startswith("_")}
+        assert public == methods, f"{protocol.__name__}: got {public!r}, want {methods!r}"
