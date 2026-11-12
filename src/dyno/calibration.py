@@ -1,5 +1,6 @@
 import math
 import statistics
+from datetime import datetime
 
 
 def fit_calibration_line(
@@ -56,3 +57,60 @@ def maximum_abs_residual(residuals: list[float]) -> float:
     if not all(math.isfinite(value) for value in residuals):
         raise ValueError("all residuals must be finite numbers")
     return max(abs(value) for value in residuals)
+
+
+def _format_calibration_number(value: float) -> str:
+    """Format calibration numbers for human-readable records."""
+    text = f"{value:.3f}".rstrip("0").rstrip(".")
+    return text if text else "0"
+
+
+def format_calibration_record(
+    sensor_name: str,
+    when_utc: datetime,
+    raw_points: list[float],
+    reference_points: list[float],
+    operator_name: str,
+    arm_length_m: float | None,
+) -> str:
+    """Text record. The error method is the maximum absolute residual."""
+    if when_utc.tzinfo is None:
+        raise ValueError("when_utc must include timezone")
+    if not operator_name.strip():
+        raise ValueError("operator_name must not be blank")
+
+    gain, offset = fit_calibration_line(raw_points, reference_points)
+    residuals = calibration_residuals(raw_points, reference_points, gain, offset)
+    error = maximum_abs_residual(residuals)
+
+    if arm_length_m is None:
+        arm_line = "arm length: not provided"
+    else:
+        arm_line = f"arm length: {_format_calibration_number(arm_length_m)} m"
+
+    lines = [
+        "Calibration record",
+        f"sensor: {sensor_name}",
+        f"operator: {operator_name}",
+        f"timestamp: {when_utc.isoformat()}",
+        f"gain: {_format_calibration_number(gain)}",
+        f"offset: {_format_calibration_number(offset)}",
+        arm_line,
+    ]
+    for raw, reference, residual in zip(
+        raw_points, reference_points, residuals, strict=True
+    ):
+        lines.append(
+            "point "
+            f"raw {_format_calibration_number(raw)} "
+            f"reference {_format_calibration_number(reference)} "
+            f"residual {_format_calibration_number(residual)}"
+        )
+    lines.extend(
+        [
+            f"error: {_format_calibration_number(error)}",
+            "error is the maximum absolute residual of the calibration points",
+            "not signed",
+        ]
+    )
+    return "\n".join(lines)
