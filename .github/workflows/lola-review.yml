@@ -1,13 +1,9 @@
-# Lola: independent reviewer. Checks every PR against the linked issue and AGENTS.md.
-# Never edits code. Posts one review and sets a pass/fail check named "lola-review"
-# that you can make required on main (see docs/github-setup.md).
+# Lola: independent reviewer gate. Provider-agnostic orchestration.
+# Which model writes the review is selected by AGENT_PROVIDER (cursor|grok|claude).
+# See .github/agents/README.md and docs/github-setup.md.
 #
-# Secrets: CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`).
 # Opt in: gh variable set ENABLE_LOLA --body true
-# When disabled, this job still runs and exits 0 so a required "lola-review" check
-# does not freeze merges.
-# Uses the default GITHUB_TOKEN so Lola's comments never re-trigger the coding agent.
-# Check https://github.com/anthropics/claude-code-action for current input names.
+# When disabled, this job still exits 0 so a required "lola-review" check does not freeze merges.
 
 name: Lola review
 
@@ -31,16 +27,17 @@ jobs:
   lola-review:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR: ${{ github.event.pull_request.number }}
+      AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
     steps:
       - name: Skip when Lola is disabled
         if: vars.ENABLE_LOLA != 'true'
         run: |
           echo "ENABLE_LOLA is not true; lola-review check passes without reviewing."
-          echo "Set ENABLE_LOLA=true after CLAUDE_CODE_OAUTH_TOKEN is configured (docs/github-setup.md)."
+          echo "Provider would be: $AGENT_PROVIDER (set AGENT_PROVIDER + ENABLE_LOLA per docs/github-setup.md)."
 
       - uses: actions/checkout@v4
         if: vars.ENABLE_LOLA == 'true'
@@ -50,51 +47,7 @@ jobs:
       - name: Wait for tests CI
         id: ci
         if: vars.ENABLE_LOLA == 'true'
-        run: |
-          set -euo pipefail
-          echo "Waiting for checks on PR #$PR…"
-          for i in $(seq 1 60); do
-            json=$(gh pr checks "$PR" --json name,state,bucket)
-            verdict=$(printf '%s' "$json" | python3 -c '
-          import json, sys
-          checks = json.loads(sys.stdin.read() or "[]")
-          tests = [c for c in checks if str(c.get("name", "")).startswith("tests")]
-          if not tests:
-              print("pending")
-              raise SystemExit
-          failed, unfinished = [], []
-          for c in tests:
-              bucket = (c.get("bucket") or "").lower()
-              name = c.get("name") or "tests"
-              if bucket in ("pass", "skipping"):
-                  continue
-              if bucket in ("fail", "cancel"):
-                  failed.append(name)
-                  continue
-              unfinished.append(name)
-          if failed:
-              print("failed:" + ",".join(failed))
-          elif unfinished:
-              print("pending")
-          else:
-              print("green")
-          ')
-            echo "poll $i: $verdict"
-            case "$verdict" in
-              green)
-                echo "ci_ok=true" >> "$GITHUB_OUTPUT"
-                exit 0
-                ;;
-              failed:*)
-                echo "ci_ok=false" >> "$GITHUB_OUTPUT"
-                echo "${verdict#failed:}" | cut -d, -f1 > /tmp/ci-fail-name.txt
-                exit 0
-                ;;
-            esac
-            sleep 20
-          done
-          echo "ci_ok=false" >> "$GITHUB_OUTPUT"
-          echo "tests-timeout" > /tmp/ci-fail-name.txt
+        run: bash scripts/agents/wait-for-tests.sh "$PR"
 
       - name: Comment when CI is red
         if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok != 'true'
@@ -102,14 +55,51 @@ jobs:
           name=$(cat /tmp/ci-fail-name.txt 2>/dev/null || echo tests)
           body=$(printf '%s\n' "**Verdict: CHANGES REQUESTED**" "" \
             "CI is not green (\`$name\`). Lola does not review a red suite." \
-            "Re-run or fix tests, then push; Lola will run again.")
+            "Re-run or fix tests, then push; Lola will run again." "" \
+            "Lola-Verdict: CHANGES")
           gh pr review "$PR" --comment --body "$body"
           gh pr edit "$PR" --add-label "review:changes" --remove-label "review:pass" || true
           echo "::error::CI not green; Lola will not PASS."
           exit 1
 
+      # ----- Provider: cursor | grok (Grokbot / Cursor Automation) -----
+      - name: Hand off to external Lola (cursor/grok)
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          (env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok')
+        run: |
+          prompt=".github/agents/prompts/lola-review.md"
+          body=$(printf '%s\n' \
+            "### Lola hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "" \
+            "CI is green. Run Lola with \`$prompt\` (and root \`AGENTS.md\`)." \
+            "Post **one comment review** and end with exactly:" \
+            "" \
+            '```' \
+            "Lola-Verdict: PASS" \
+            '```' \
+            "or" \
+            '```' \
+            "Lola-Verdict: CHANGES" \
+            '```' \
+            "" \
+            "Do not approve or request-changes. Actions will enforce the check.")
+          gh pr comment "$PR" --body "$body"
+
+      - name: Wait for external Lola-Verdict
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          (env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok')
+        run: bash scripts/agents/wait-for-lola-verdict.sh "$PR"
+
+      # ----- Provider: claude -----
       - uses: anthropics/claude-code-action@v1
-        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok == 'true'
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          env.AGENT_PROVIDER == 'claude'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: |
@@ -119,56 +109,23 @@ jobs:
           claude_args: >-
             --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Read,Glob,Grep,Write,Task"
           prompt: |
-            You are Lola, the requirements reviewer for pull request #${{ github.event.pull_request.number }}
-            in ${{ github.repository }}. You did not write this code. Review it independently and
-            skeptically. Do NOT modify any repository file except the two output files below.
+            Follow the prompt file .github/agents/prompts/lola-review.md exactly.
+            Substitute $PR=${{ github.event.pull_request.number }} and $REPO=${{ github.repository }}.
+            Also write the single word PASS or CHANGES to review-verdict.txt for the gate
+            (in addition to the Lola-Verdict line in the PR comment).
 
-            Read AGENTS.md first. It is the authority for this review.
-
-            1. Read the PR: `gh pr view $PR --json title,body,files,headRefName,labels` and `gh pr diff $PR`.
-            2. Find the linked issue from "Closes #N" in the PR body. Read it with
-               `gh issue view N --comments`. If there is no linked issue, review against AGENTS.md
-               only and say so; that is usually a Must fix unless the PR is pure CI/docs plumbing
-               that names its own acceptance in the body.
-            3. Confirm CI is green (`gh pr checks $PR`). If not, Verdict is CHANGES REQUESTED.
-            4. For EVERY acceptance criterion in the issue: Met / Partly met / Not met, with
-               file:line evidence, and whether a test covers it. Do not trust the PR description alone.
-            5. Apply every Lola check from AGENTS.md:
-               - exactly one Closes #N when the change is issue-driven
-               - red evidence is real (names the new test; reject `collected 0 items`)
-               - units in public names (torque_nm, speed_rpm, power_kw, …)
-               - no invented hardware literals (arm length, pedal volts, CAN id, safe valve)
-                 outside example tests or rig.example.toml
-               - no tautological tests (expected value copied from the implementation; assert callable;
-                 silent broad except)
-               - no drive-by scope; no workflow edits by coding agents
-               - safety boundary: laptop is not the safety system; no code that drives the physical
-                 valve, spins the motor, or connects the tractive battery as part of this change
-            6. Flag over-engineering the criteria do not need.
-            7. Use pr-review-toolkit agents if helpful for tests and silent failures.
-            8. Write review.md with this structure:
-               **Verdict: PASS** or **Verdict: CHANGES REQUESTED**
-               a table of criteria (criterion | status | evidence | test?),
-               an AGENTS.md checklist, then findings ranked Must fix / Should fix / Nice to have.
-               Keep it under 600 words.
-            9. Post it: `gh pr review $PR --comment --body-file review.md`
-               (Do not use --approve or --request-changes. Humans are the only merge authority.
-               Fail the check via review-verdict.txt instead.)
-            10. Write exactly one word, PASS or CHANGES, to review-verdict.txt.
-                CHANGES only if: a criterion is Not met by its literal wording, an AGENTS.md
-                Must-fix rule is broken, red evidence is fake, a test is tautological, hardware
-                was invented, or the safety boundary is breached. Do not invent requirements the
-                issue did not state. Style-only nits never block.
+      - name: Map Claude verdict file if present
+        if: >-
+          vars.ENABLE_LOLA == 'true' &&
+          steps.ci.outputs.ci_ok == 'true' &&
+          env.AGENT_PROVIDER == 'claude'
+        run: |
+          if [ -f review-verdict.txt ]; then
+            echo "Using review-verdict.txt from Claude"
+          else
+            bash scripts/agents/wait-for-lola-verdict.sh "$PR" || true
+          fi
 
       - name: Enforce verdict
         if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok == 'true'
-        run: |
-          v=$(tr -d '[:space:]' < review-verdict.txt 2>/dev/null || echo MISSING)
-          echo "Lola verdict: $v"
-          if [ "$v" = "PASS" ]; then
-            gh pr edit "$PR" --add-label "review:pass" --remove-label "review:changes" || true
-          else
-            gh pr edit "$PR" --add-label "review:changes" --remove-label "review:pass" || true
-            echo "::error::Lola review did not pass (verdict: $v). See the review comment."
-            exit 1
-          fi
+        run: bash scripts/agents/enforce-lola-verdict.sh "$PR"

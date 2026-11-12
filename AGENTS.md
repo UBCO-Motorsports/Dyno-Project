@@ -14,7 +14,9 @@ The laptop program in this repo is a supervisor for a water-brake dynamometer. I
 | Lola (CI review) | After CI is green on a PR, review the diff against this file and the issue; post one review; set the `lola-review` check to PASS or CHANGES | Merge, rewrite the PR, invent requirements the issue did not state, `--approve` |
 | Human reviewer | Run the tests, check the red evidence, approve or request changes | Rubber-stamp green CI as a review |
 
-Live wiring: [`.github/workflows/`](.github/workflows/) and setup steps in [`docs/github-setup.md`](docs/github-setup.md). Lola and nightly stay off until `ENABLE_LOLA` / `ENABLE_OVERNIGHT_AGENT` are `true` and secrets exist.
+Live wiring: [`.github/workflows/`](.github/workflows/), shared prompts in [`.github/agents/`](.github/agents/), setup in [`docs/github-setup.md`](docs/github-setup.md).
+
+**Provider switch:** repo variable `AGENT_PROVIDER` = `cursor` (default, Grokbot/Cursor), `grok` (same contract), or `claude` (Claude Code Action). Rules and prompts do not change when you switch — only which runner executes them. Lola and nightly stay off until `ENABLE_LOLA` / `ENABLE_OVERNIGHT_AGENT` are `true`.
 
 ---
 
@@ -74,7 +76,7 @@ Two commits when possible (`test:` then `feat:`). One commit is fine if both red
 
 ## Lola as an extension of CI
 
-Lola is the automated review step in [`.github/workflows/lola-review.yml`](.github/workflows/lola-review.yml). CI proves the suite is green. Lola proves the change matches the issue and is not tautological. The job posts one review comment and fails the **`lola-review`** status check on CHANGES (labels `review:pass` / `review:changes`). Neither replaces a human merge on `main`.
+Lola is the automated review gate in [`.github/workflows/lola-review.yml`](.github/workflows/lola-review.yml). CI proves the suite is green. Lola proves the change matches the issue and is not tautological. The reviewer (Grokbot, Cursor, Claude, …) posts one **comment** review and ends with `Lola-Verdict: PASS` or `Lola-Verdict: CHANGES`. Actions fails the **`lola-review`** check on CHANGES (labels `review:pass` / `review:changes`). Prompt: [`.github/agents/prompts/lola-review.md`](.github/agents/prompts/lola-review.md). Neither replaces a human merge on `main`.
 
 ### When Lola runs
 

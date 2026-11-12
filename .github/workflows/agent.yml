@@ -1,15 +1,9 @@
-# Coding agent, on demand:
-#   Add the `agent-now` label to an issue -> implements it right away as a draft PR.
-#   (`overnight-queue` only marks issues the nightly run may pick; it never triggers a run.)
-#
-# Secrets: CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`) and GH_PAT
-# (fine-grained token for this repo: Contents, Pull requests, Issues = read/write).
-# GH_PAT matters: pushes and PRs made with the default GITHUB_TOKEN do NOT trigger
-# other workflows, so CI and Lola would never run on the agent's PRs.
-#
-# Check https://github.com/anthropics/claude-code-action for current input names.
+# Coding agent on demand: label an issue `agent-now`.
+# Provider: AGENT_PROVIDER=cursor|grok|claude (see .github/agents/README.md).
+# For cursor/grok, Actions posts the prompt hand-off; Grokbot/Cursor opens the draft PR.
+# For claude, Claude Code Action runs in this job (needs CLAUDE_CODE_OAUTH_TOKEN + GH_PAT).
 
-name: Overnight coding agent
+name: Coding agent
 
 on:
   issues:
@@ -31,21 +25,56 @@ jobs:
       cancel-in-progress: false
     timeout-minutes: 90
     env:
-      GH_TOKEN: ${{ secrets.GH_PAT }}
+      GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+      AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
+      ISSUE: ${{ github.event.issue.number }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
+      - name: Resolve provider
+        id: prov
+        run: |
+          echo "AGENT_PROVIDER=$AGENT_PROVIDER"
+          echo "provider=$AGENT_PROVIDER" >> "$GITHUB_OUTPUT"
+
+      # ----- cursor | grok: hand off to Grokbot / Cursor -----
+      - name: Hand off to external coding agent
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          body=$(printf '%s\n' \
+            "### Coding-agent hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "" \
+            "Label \`agent-now\` was added. Run the coding agent with:" \
+            "- \`.github/agents/prompts/coding-agent.md\`" \
+            "- root \`AGENTS.md\`" \
+            "" \
+            "Substitute \`\$ISSUE=$ISSUE\` and \`\$REPO=$GITHUB_REPOSITORY\`." \
+            "Open one **draft** PR, label it \`overnight-agent\`, remove \`agent-now\` / \`overnight-queue\`." \
+            "If blocked, add \`needs-human\` and comment.")
+          gh issue comment "$ISSUE" --body "$body"
+          echo "handed_off=true" >> "$GITHUB_OUTPUT"
+
+      - name: External provider — do not fail this job on missing PR
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          echo "Provider $AGENT_PROVIDER owns the implementation outside this job."
+          echo "When the draft PR lands, CI + Lola still run on GitHub."
+
+      # ----- claude -----
       - uses: actions/setup-python@v5
+        if: env.AGENT_PROVIDER == 'claude'
         with:
           python-version: "3.11"
 
       - name: Language server for the LSP plugin
+        if: env.AGENT_PROVIDER == 'claude'
         run: pip install pyright
 
       - uses: anthropics/claude-code-action@v1
+        if: env.AGENT_PROVIDER == 'claude'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GH_PAT }}
@@ -59,51 +88,20 @@ jobs:
           claude_args: >-
             --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
           prompt: |
-            Implement GitHub issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+            Follow .github/agents/prompts/coding-agent.md exactly.
+            Substitute $ISSUE=${{ github.event.issue.number }} and $REPO=${{ github.repository }}.
 
-            1. Read AGENTS.md, then the issue (`gh issue view ${{ github.event.issue.number }} --comments`).
-               Also skim docs/overnight-queue.md and docs/open-questions.md if the issue touches hardware numbers.
-            2. If the issue is labeled needs-human, board: blocked, field task, or difficulty: expert,
-               or the acceptance criteria are ambiguous, comment with specific questions, add needs-human,
-               remove agent-now, and stop. Do not guess. Do not invent CAN ids, pedal voltages, arm lengths,
-               or safe valve positions.
-            3. Restate the issue in one short paragraph on the issue comment: what you will change,
-               what you will not change, and which acceptance lines you will prove.
-            4. Branch issue-${{ github.event.issue.number }}-<short-name> from current main.
-               **Red first:** add or extend the tests from the issue; commit `test: ...`; run them;
-               they must fail for a real reason (missing symbol or assertion). Capture that output.
-               **Green:** implement the smallest code that matches the issue; commit `feat: ...` or `fix: ...`.
-               AGENTS.md and the acceptance criteria override minimalism when they conflict.
-            5. Before pushing, run exactly what CI runs from the repo root:
-               `bash scripts/ci-local.sh` if present, else `python -m pip install -e ".[dev]" && ruff check . && python -m pytest -q`.
-               Never claim a check passed unless you ran it.
-            6. Open a **DRAFT** pull request. Fill `.github/pull_request_template.md`:
-               body starts with "Closes #${{ github.event.issue.number }}", then red evidence (exact
-               command + failure naming the new test; `collected 0 items` does not count), then green
-               evidence, then notes. Label the PR `overnight-agent`.
-               A separate reviewer (Lola) will check it against AGENTS.md.
-            7. Comment on the issue with a two-line summary and the PR link. Remove labels
-               `agent-now` and `overnight-queue` from the issue
-               (`gh issue edit <n> --remove-label agent-now --remove-label overnight-queue`).
-
-            Never push to main, never merge, never edit .github/workflows/, never enable auto-merge,
-            never add dependencies unless the issue names them, never treat the laptop as the safety system,
-            never spin the motor / connect the tractive battery / drive the physical valve.
-            Never end silently: if you cannot finish, comment on the issue saying what blocked you
-            and add the needs-human label.
-
-      - name: Fail if the agent opened no PR
-        if: always()
+      - name: Fail if Claude opened no PR
+        if: always() && env.AGENT_PROVIDER == 'claude'
         run: |
           n=${{ github.event.issue.number }}
-          if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number,isDraft --jq 'length' | grep -qx '[1-9][0-9]*'; then
+          if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number --jq 'length' | grep -qx '[1-9][0-9]*'; then
             echo "PR found for #$n"; exit 0
           fi
-          # Heads are issue-N-slug
           if gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName,number --jq "[.[] | select(.headRefName | startswith(\"issue-$n-\"))] | length" | grep -qx '[1-9][0-9]*'; then
             echo "PR found by branch prefix for #$n"; exit 0
           fi
           if gh issue view "$n" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx needs-human; then
             echo "No PR, but #$n was handed back with needs-human"; exit 0
           fi
-          echo "::error::Agent finished without a PR or a needs-human hand-off for #$n"; exit 1
+          echo "::error::Claude finished without a PR or a needs-human hand-off for #$n"; exit 1

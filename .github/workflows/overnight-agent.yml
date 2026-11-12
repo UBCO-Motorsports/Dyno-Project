@@ -1,8 +1,6 @@
-# Nightly builder: picks ONE overnight-queue issue and opens a draft PR for morning review.
-# Opt in with:  gh variable set ENABLE_OVERNIGHT_AGENT --body true
-# Runs count against the usage limits of the subscription behind CLAUDE_CODE_OAUTH_TOKEN.
-# Uses GH_PAT so the PR triggers CI and Lola (see agent.yml header).
-# Check https://github.com/anthropics/claude-code-action for current input names.
+# Nightly: one overnight-queue issue. Provider via AGENT_PROVIDER (cursor|grok|claude).
+# Opt in: gh variable set ENABLE_OVERNIGHT_AGENT --body true
+# See .github/agents/README.md.
 
 name: Overnight agent nightly
 
@@ -28,21 +26,68 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      GH_TOKEN: ${{ secrets.GH_PAT }}
+      GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+      AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
+      # ----- cursor | grok -----
+      - name: Hand off overnight pick to external agent
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          set -euo pipefail
+          n=$(gh issue list --state open --label overnight-queue --json number,labels --limit 100 \
+            | python3 -c '
+          import json, sys
+          skip = {"needs-human", "board: blocked", "field task", "difficulty: expert"}
+          issues = json.load(sys.stdin)
+          for it in issues:
+              names = {l["name"] for l in it.get("labels") or []}
+              if names & skip:
+                  continue
+              print(it["number"])
+              break
+          ')
+          if [ -z "$n" ]; then
+            echo NONE > overnight-picked.txt
+            echo "Queue empty."
+            exit 0
+          fi
+          echo "$n" > overnight-picked.txt
+          body=$(printf '%s\n' \
+            "### Overnight hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "" \
+            "Please implement issue #$n using:" \
+            "- \`.github/agents/prompts/overnight-agent.md\`" \
+            "- root \`AGENTS.md\`" \
+            "- queue order in \`docs/overnight-queue.md\`" \
+            "" \
+            "Open one **draft** PR (\`Closes #$n\`), label \`overnight-agent\`, remove \`overnight-queue\`." \
+            "If blocked, add \`needs-human\`.")
+          gh issue comment "$n" --body "$body"
+          echo "Handed off #$n to $AGENT_PROVIDER. Cursor/Grokbot must open the PR."
+
+      - name: External overnight — success after hand-off
+        if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
+        run: |
+          picked=$(tr -d '[:space:]' < overnight-picked.txt 2>/dev/null || echo NONE)
+          echo "overnight-picked: $picked (external provider owns the PR)"
+
+      # ----- claude -----
       - uses: actions/setup-python@v5
+        if: env.AGENT_PROVIDER == 'claude'
         with:
           python-version: "3.11"
 
       - name: Language server for the LSP plugin
+        if: env.AGENT_PROVIDER == 'claude'
         run: pip install pyright
 
       - uses: anthropics/claude-code-action@v1
+        if: env.AGENT_PROVIDER == 'claude'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GH_PAT }}
@@ -56,38 +101,11 @@ jobs:
           claude_args: >-
             --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
           prompt: |
-            You are the overnight coding agent for ${{ github.repository }}. Do exactly one issue.
+            Follow .github/agents/prompts/overnight-agent.md exactly.
+            Substitute $REPO=${{ github.repository }}.
 
-            1. Pick the issue:
-               - Prefer the order in docs/overnight-queue.md ("Next issues to open as PRs").
-               - Confirm it is still open with label overnight-queue:
-                 `gh issue list --state open --label overnight-queue --json number,title,labels --limit 100`
-               - Exclude needs-human, board: blocked, field task, difficulty: expert.
-               - Exclude issues that already have an open PR closing them
-                 (`gh pr list --state open --search "Closes #<n>"`).
-               - Among the rest, take the first row from the queue file that still qualifies;
-                 if the queue file is stale, take the lowest issue number.
-               - If nothing qualifies: write exactly `NONE` to overnight-picked.txt, write a short
-                 job summary, and stop without changes.
-            2. When you pick an issue, write its number alone to overnight-picked.txt (example: `10`).
-            3. Read AGENTS.md, the issue, and docs/open-questions.md when hardware numbers appear.
-               If criteria are ambiguous or a required value is unanswered, comment with questions,
-               add needs-human, and stop. Do not invent hardware numbers.
-            4. Branch issue-<n>-<short-name>. Red-first TDD as in AGENTS.md (test commit that fails
-               for a real reason, then feat/fix). Before pushing, run `bash scripts/ci-local.sh`
-               (or the Commands in AGENTS.md) until it passes. Never claim a check passed unless you ran it.
-            5. Open a **DRAFT** PR whose body fills `.github/pull_request_template.md`:
-               Closes #<n>, red evidence, green evidence, notes. Label the PR overnight-agent.
-               Remove overnight-queue from the issue. Comment on the issue with the PR link.
-            6. Stop. Do not start a second issue. Do not merge.
-
-            Never push to main, never merge, never edit .github/workflows/, never enable auto-merge,
-            never add dependencies unless the issue names them, never treat the laptop as the safety system,
-            never spin the motor / connect the tractive battery / drive the physical valve.
-            Never end silently: if you cannot finish an issue you picked, comment, add needs-human, and stop.
-
-      - name: Fail if the agent opened no PR
-        if: always()
+      - name: Fail if Claude opened no PR
+        if: always() && env.AGENT_PROVIDER == 'claude'
         run: |
           set -euo pipefail
           picked=$(tr -d '[:space:]' < overnight-picked.txt 2>/dev/null || echo MISSING)

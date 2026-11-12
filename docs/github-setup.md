@@ -1,106 +1,104 @@
 # Setup: CI, Lola, and overnight coding agents
 
-About 30 minutes. Agents run on **GitHub Actions** — your laptop does not need to stay on. You only need it once to create tokens and run a smoke test.
+About 30 minutes. **Rules and prompts are provider-agnostic.** GitHub Actions owns CI and the `lola-review` gate; which AI runs the prompt is a switch.
 
 ## How it works
 
 ```
- you label an issue          nightly 2:17 AM picks one
+ you label an issue          nightly picks one
    "agent-now"                 "overnight-queue" issue
         \                          /
          v                        v
-   CODING AGENT (agent.yml / overnight-agent.yml)
-   reads AGENTS.md + the issue -> branch -> TDD -> DRAFT PR
+   CODING AGENT (provider: cursor | grok | claude)
+   reads AGENTS.md + .github/agents/prompts/* -> DRAFT PR
                               |
             +-----------------+------------------+
             v                                    v
-   CI (tests.yml)                        LOLA (lola-review.yml)
-   ruff, pytest, guardrails              checks acceptance + AGENTS.md
-   -> checks "tests (3.11/3.14)"         -> review comment + check "lola-review"
+   CI (tests.yml)                        LOLA gate (lola-review.yml)
+   ruff, pytest, guardrails              wait for green CI, then provider review
+                                         -> Lola-Verdict: PASS|CHANGES
+                                         -> check "lola-review"
             \                                    /
              v                                  v
-        YOU review in the morning: merge, or fix and push
+        YOU merge in the morning
 ```
 
 | File | Purpose |
 | --- | --- |
-| [`AGENTS.md`](../AGENTS.md) | Rules every agent and Lola follow |
-| [`.github/workflows/tests.yml`](../.github/workflows/tests.yml) | CI: ruff, pytest, safety guardrails |
-| [`.github/workflows/lola-review.yml`](../.github/workflows/lola-review.yml) | Lola: independent review + `lola-review` check |
-| [`.github/workflows/agent.yml`](../.github/workflows/agent.yml) | Coding agent on `agent-now` |
-| [`.github/workflows/overnight-agent.yml`](../.github/workflows/overnight-agent.yml) | One `overnight-queue` issue per night |
-| [`scripts/ci-local.ps1`](../scripts/ci-local.ps1) / [`.sh`](../scripts/ci-local.sh) | Same steps as CI on your machine |
+| [`AGENTS.md`](../AGENTS.md) | Rules every provider must follow |
+| [`.github/agents/`](../.github/agents/) | Shared prompts + provider switch docs |
+| [`.github/workflows/lola-review.yml`](../.github/workflows/lola-review.yml) | Lola gate (provider-agnostic) |
+| [`.github/workflows/agent.yml`](../.github/workflows/agent.yml) | `agent-now` coding agent |
+| [`.github/workflows/overnight-agent.yml`](../.github/workflows/overnight-agent.yml) | Nightly one-issue pick |
+| [`scripts/ci-local.ps1`](../scripts/ci-local.ps1) | Same steps as CI on your machine |
 
-**Labels**
+## Switch AI provider
+
+```powershell
+gh variable set AGENT_PROVIDER --body cursor   # Grokbot / Cursor (default)
+gh variable set AGENT_PROVIDER --body grok     # same hand-off contract as cursor
+gh variable set AGENT_PROVIDER --body claude   # Claude Code Action inside GitHub Actions
+```
+
+| Value | What runs the model |
+| --- | --- |
+| `cursor` / `grok` | Your Grokbot / Cursor Automation. Actions posts a hand-off comment and (for Lola) waits for `Lola-Verdict:` |
+| `claude` | `anthropics/claude-code-action` in Actions (needs `CLAUDE_CODE_OAUTH_TOKEN`) |
+
+Prompts stay the same either way: `.github/agents/prompts/*.md`.
+
+**Lola contract (every provider):** one comment review + a line `Lola-Verdict: PASS` or `Lola-Verdict: CHANGES`. Never approve / request-changes.
+
+## Labels
 
 | Label | On | Meaning |
 | --- | --- | --- |
 | `overnight-queue` | issue | Nightly may pick this; does **not** start a run by itself |
-| `agent-now` | issue | Start the coding agent on this issue immediately |
+| `agent-now` | issue | Start / hand off the coding agent immediately |
 | `needs-human` | issue | Agent stopped; a person must answer |
-| `overnight-agent` | PR | Opened by the coding agent |
+| `overnight-agent` | PR | Opened by a coding agent |
 | `review:pass` / `review:changes` | PR | Lola's last verdict |
 
-## Prerequisites
+## Step 1. Variables (all providers)
 
-- A Claude **Pro or Max** plan (agent runs use that plan's usage).
-- Claude Code CLI (`claude --version`).
-- GitHub CLI logged in: `gh auth login`.
+```powershell
+gh variable set AGENT_PROVIDER --body cursor
+gh variable set ENABLE_LOLA --body false
+gh variable set ENABLE_OVERNIGHT_AGENT --body false
+```
 
-## Step 1. Secrets and variables
+## Step 2. Secrets
 
-**1. Claude token**
+**Always useful:** fine-grained `GH_PAT` (Contents, Pull requests, Issues = read/write) so agent pushes retrigger CI/Lola:
+
+```powershell
+gh secret set GH_PAT
+```
+
+**Only if `AGENT_PROVIDER=claude`:**
 
 ```powershell
 claude setup-token
 gh secret set CLAUDE_CODE_OAUTH_TOKEN
 ```
 
-**2. Fine-grained `GH_PAT`** (GitHub → Settings → Developer settings → Fine-grained tokens)
+Install the Claude GitHub App only for the Claude path. Close any PR that adds a stock `claude.yml`.
 
-- Repository access: only this repo.
-- Permissions: Contents, Pull requests, Issues = read and write.
-- Expiry: 90 days; calendar reminder to rotate.
+**If you use Grokbot / Cursor:** no Claude secret required. Point your automation at `.github/agents/prompts/` and `AGENTS.md`. For Lola, trigger after CI is green and post the `Lola-Verdict:` line.
 
-```powershell
-gh secret set GH_PAT
-```
-
-Why: pushes made with the default `GITHUB_TOKEN` do **not** trigger other workflows. Without `GH_PAT`, CI and Lola never run on agent PRs.
-
-**3.** Install the Claude GitHub App on the repo (`/install-github-app` in Claude Code). If it opens a PR adding its own `claude.yml`, close that PR; these workflows replace it.
-
-**4.** Leave Lola and nightly **off** until secrets are in and the smoke test passes:
-
-```powershell
-gh variable set ENABLE_LOLA --body false
-gh variable set ENABLE_OVERNIGHT_AGENT --body false
-```
-
-After the smoke test:
-
-```powershell
-gh variable set ENABLE_LOLA --body true
-gh variable set ENABLE_OVERNIGHT_AGENT --body true
-```
-
-## Step 2. Repository settings
+## Step 3. Repository settings
 
 - **Actions → General → Workflow permissions:** Read and write.
-- **Rules → branch ruleset for `main`:**
-  - Require a pull request.
-  - Require status checks `tests (3.11)`, `tests (3.14)`, and `lola-review` (add `lola-review` after its first green run appears in the picker).
-  - `lola-review` always reports: when `ENABLE_LOLA` is false it exits success without reviewing, so turning Lola off does not freeze merges. Prefer keeping `ENABLE_LOLA=true` once secrets work.
-  - Prefer requiring one human approval when the author is not the only reviewer. Agent PRs opened with your `GH_PAT` count as yours — GitHub will not let you approve your own PR, so either use a bot account for `GH_PAT` or rely on the automated checks plus your merge click.
-  - Lola only posts **comment** reviews (never approve / request-changes). The failed `lola-review` check is the gate.
+- **Rules → `main`:** require `tests (3.11)`, `tests (3.14)`, and `lola-review`.
+- `lola-review` always reports: when `ENABLE_LOLA` is false it exits success without reviewing.
 
-## Step 3. Smoke test
+## Step 4. Smoke test
 
-1. Pick a tiny overnight-safe issue (or open a throwaway one).
-2. `gh issue edit <n> --add-label agent-now`
-3. Wait for the coding agent workflow → draft PR with `overnight-agent`.
-4. Confirm `tests` runs, then Lola posts a review and the `lola-review` check is green or red with a useful comment.
-5. Only then: `gh variable set ENABLE_LOLA --body true` and `gh variable set ENABLE_OVERNIGHT_AGENT --body true`
+1. Keep `ENABLE_LOLA=false` until your provider can post `Lola-Verdict:`.
+2. `gh issue edit <n> --add-label agent-now` → hand-off comment (cursor/grok) or Claude draft PR.
+3. Open/confirm a draft PR; wait for `tests`.
+4. Set `ENABLE_LOLA=true`. On the next push, Lola waits for CI then for your provider’s verdict (or runs Claude).
+5. Then `gh variable set ENABLE_OVERNIGHT_AGENT --body true` if you want nightly.
 
 ## Local parity
 
@@ -108,8 +106,8 @@ gh variable set ENABLE_OVERNIGHT_AGENT --body true
 .\scripts\ci-local.ps1
 ```
 
-Agents on Ubuntu run `bash scripts/ci-local.sh`.
+## Cursor / Grokbot automation tips
 
-## Cursor overnight (optional)
-
-You can still run a Cursor cloud/overnight agent that follows `AGENTS.md` by hand. The Actions path above is the unattended GitHub factory; Cursor is fine for interactive work. Do not run both against the same issue at once.
+- **Coding:** on `agent-now` or the overnight hand-off comment, run `.github/agents/prompts/coding-agent.md` / `overnight-agent.md`.
+- **Lola:** on CI success for a PR, run `.github/agents/prompts/lola-review.md` and end with `Lola-Verdict: PASS` or `CHANGES`.
+- Do not run Cursor and Claude against the same issue at once.
