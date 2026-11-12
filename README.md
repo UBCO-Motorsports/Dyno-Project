@@ -21,19 +21,26 @@ Sprints are one week and end with a Thursday review in front of the people named
 
 ## Start here
 
-These are the first sprint's issues (due Thursday 5 November). None of them needs the rig.
+**As of 11 Nov 2026:** S1 laptop coding is on `main` (power, torque, limits, log columns, bad inputs, sample, CI). You are in **S2** (review Thu 12 Nov). Full schedule: [docs/delivery-plan.md](docs/delivery-plan.md).
+
+### Late from S1 (people, not code)
 
 | Issue | What you do | Size |
 | --- | --- | --- |
-| [#36](https://github.com/UBCO-Motorsports/Dyno-Project/issues/36) | Turn on automatic tests for every pull request | 1 hour |
-| [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) | Ask Owen, Alex, and the sub-teams the open questions (due Tue 3 Nov) | 1 hour of messages |
+| [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) | Get answers from Owen, Alex, and the sub-teams into `docs/open-questions.md` | 1 hour of messages |
 | [#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37) | Compare controller boards for Electrical to choose | 2 hours |
-| [#3](https://github.com/UBCO-Motorsports/Dyno-Project/issues/3) | Name the 150 N·m, 7000 rpm, and 80 kW limits | 1 hour |
-| [#4](https://github.com/UBCO-Motorsports/Dyno-Project/issues/4) | Lock the CSV column names | 1 hour |
-| [#6](https://github.com/UBCO-Motorsports/Dyno-Project/issues/6) | Reject torque and power inputs that cannot be used | 2 hours |
-| [#10](https://github.com/UBCO-Motorsports/Dyno-Project/issues/10) | Build one sample record | half day |
 
-[#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) and [#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37) are the ones to take if you would rather talk to people than write a function during midterms.
+### S2 coding (pick from the overnight queue)
+
+| Issue | What you do | Size |
+| --- | --- | --- |
+| [#7](https://github.com/UBCO-Motorsports/Dyno-Project/issues/7) | Fit a calibration line through synthetic points | half day |
+| [#9](https://github.com/UBCO-Motorsports/Dyno-Project/issues/9) | Apply a calibration to a raw bridge reading | half day |
+| [#11](https://github.com/UBCO-Motorsports/Dyno-Project/issues/11) | Write a timestamped CSV log | half day |
+| [#23](https://github.com/UBCO-Motorsports/Dyno-Project/issues/23) | Clamp pedal voltages and return them to zero | 2 hours |
+| [#26](https://github.com/UBCO-Motorsports/Dyno-Project/issues/26) | Format live torque, speed, and power text | 2 hours |
+
+Ask Grok to implement one: label `agent-now`, comment `/grok now`, or [Run Coding agent](https://github.com/UBCO-Motorsports/Dyno-Project/actions/workflows/agent.yml). Queue order: [docs/overnight-queue.md](docs/overnight-queue.md).
 
 ## Kanban
 

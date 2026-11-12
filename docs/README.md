@@ -29,8 +29,9 @@ How the software is split:
 ```mermaid
 flowchart LR
     subgraph laptop ["Laptop: this repo, Python"]
-        screen[Screen<br/>start, stop, live numbers]
-        files[CSV file per run<br/>and plots]
+        maths["Measurement maths<br/>power, torque, limits, Sample<br/>on main"]
+        screen[Screen<br/>start, stop, live numbers<br/>not built yet]
+        files[CSV file per run<br/>schema locked; writer next]
     end
     subgraph controller ["Small controller board"]
         loop[Reads sensors<br/>every 10 ms]
@@ -51,8 +52,22 @@ flowchart LR
 
 The laptop is allowed to be slow or to crash. The controller and the E-stop are what keep the rig safe. That split is the most important design decision in the project.
 
+### What is already in `src/dyno/` (as of 11 Nov 2026)
+
+| Module | Issue / PR | Role |
+| --- | --- | --- |
+| `power.py` | [#1](https://github.com/UBCO-Motorsports/Dyno-Project/issues/1) / [#32](https://github.com/UBCO-Motorsports/Dyno-Project/pull/32) | Mechanical power from torque and speed |
+| `torque.py` | [#2](https://github.com/UBCO-Motorsports/Dyno-Project/issues/2) / [#33](https://github.com/UBCO-Motorsports/Dyno-Project/pull/33) | Torque from force and arm length |
+| `limits.py` | [#3](https://github.com/UBCO-Motorsports/Dyno-Project/issues/3) / [#52](https://github.com/UBCO-Motorsports/Dyno-Project/pull/52) | Named motor limits and over-cap flag |
+| `log_schema.py` | [#4](https://github.com/UBCO-Motorsports/Dyno-Project/issues/4) / [#34](https://github.com/UBCO-Motorsports/Dyno-Project/pull/34) | Locked CSV column names |
+| `sample.py` | [#10](https://github.com/UBCO-Motorsports/Dyno-Project/issues/10) / [#60](https://github.com/UBCO-Motorsports/Dyno-Project/pull/60) | Frozen sample record; `power_kw` derived |
+| *(reject bad inputs)* | [#6](https://github.com/UBCO-Motorsports/Dyno-Project/issues/6) / [#53](https://github.com/UBCO-Motorsports/Dyno-Project/pull/53) | Lives in `power.py` / `torque.py` |
+
+Still planned (not on disk yet): calibration, CSV read/write, run state machine, ports/simulator, operator screen, controller link, firmware. See [delivery-plan.md](delivery-plan.md).
+
 ## What we deliver, and when
 
+- **Now (week of 11 Nov):** S1 laptop maths is on `main`. S2 (due Thu 12 Nov) is calibration + CSV + state machine + interfaces. [#5](https://github.com/UBCO-Motorsports/Dyno-Project/issues/5) answers and [#37](https://github.com/UBCO-Motorsports/Dyno-Project/issues/37) board choice are late and still needed.
 - **MVP, Thursday 26 November.** MVP means minimum viable product: the smallest thing that is genuinely useful. Ours is one low-load run where torque is calibrated, the valve is set by hand from the screen, the run is saved to a file and plotted, and the motor can be stopped at any moment.
 - **Validation, Thursday 3 December.** We check the rig's numbers against things our software did not produce: a known weight, a handheld tachometer, a hand calculation.
 - **Handover, Monday 11 January.** A document so next term's team can run the rig without us.

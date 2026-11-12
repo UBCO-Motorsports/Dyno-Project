@@ -30,3 +30,29 @@ def apply_calibration(raw: float, gain: float, offset: float) -> float:
     if not (math.isfinite(raw) and math.isfinite(gain) and math.isfinite(offset)):
         raise ValueError("raw, gain, and offset must be finite numbers")
     return gain * raw + offset
+
+
+def calibration_residuals(
+    raw_points: list[float],
+    reference_points: list[float],
+    gain: float,
+    offset: float,
+) -> list[float]:
+    """reference - apply_calibration(raw, gain, offset), for each point, in order."""
+    return [
+        ref - apply_calibration(raw, gain, offset)
+        for raw, ref in zip(raw_points, reference_points, strict=True)
+    ]
+
+
+def maximum_abs_residual(residuals: list[float]) -> float:
+    """Largest absolute residual. This is the error figure stored with a calibration.
+
+    The value is the maximum absolute residual over the calibration points, not
+    a full laboratory uncertainty budget.
+    """
+    if not residuals:
+        raise ValueError("residuals must not be empty")
+    if not all(math.isfinite(value) for value in residuals):
+        raise ValueError("all residuals must be finite numbers")
+    return max(abs(value) for value in residuals)
