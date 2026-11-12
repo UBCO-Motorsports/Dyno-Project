@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       PR: ${{ github.event.pull_request.number }}
       PR_ASSIGNEE: ${{ vars.PR_ASSIGNEE || 'KitheK' }}
     steps:
@@ -25,6 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Assigning PR #$PR to $PR_ASSIGNEE"
+          # No checkout: GH_REPO tells gh which repo (avoids "not a git repository")
           gh pr edit "$PR" --add-assignee "$PR_ASSIGNEE"
           # Overnight / agent PRs: also request the owner as reviewer so they can approve as themselves
           if gh pr view "$PR" --json labels --jq '.labels[].name' | grep -qx overnight-agent; then
