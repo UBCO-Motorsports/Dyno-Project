@@ -1,4 +1,3 @@
-import math
 from datetime import UTC, datetime
 
 import pytest
@@ -22,8 +21,13 @@ def _sample(**overrides) -> Sample:
 
 
 def test_power_comes_from_torque_and_speed():
-    expected = 10 * 1000 * 2 * math.pi / 60_000
-    assert _sample().power_kw == pytest.approx(expected)
+    # 10 N·m at 1000 rpm ≈ 1.0471975512 kW (hand-computed)
+    assert _sample().power_kw == pytest.approx(1.0471975512)
+
+
+def test_power_is_not_a_constructor_argument():
+    with pytest.raises(TypeError):
+        _sample(power_kw=1.0)
 
 
 def test_sample_is_immutable():
