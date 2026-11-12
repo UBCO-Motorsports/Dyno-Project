@@ -1,13 +1,13 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from dyno.log_schema import LOG_COLUMNS
 from dyno.log_csv import write_log
+from dyno.log_schema import LOG_COLUMNS
 from dyno.sample import Sample
 
 
 def test_write_log_has_the_fixed_header_and_one_row(tmp_path):
     sample = Sample(
-        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=timezone.utc),
+        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
         torque_nm=10,
         speed_rpm=1000,
         strain=0.001,
