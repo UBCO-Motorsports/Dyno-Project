@@ -18,11 +18,13 @@ Read root `AGENTS.md` first. It overrides taste.
 4. For every acceptance criterion: Met / Partly met / Not met, with file:line evidence and whether a test covers it.
 5. Apply every Lola check from `AGENTS.md` (issue link, real red evidence, units in names, no invented hardware, no tautology, no drive-by scope, no workflow edits by coding agents, safety boundary).
 6. Flag over-engineering the criteria do not need.
-7. Post **one** PR review **comment** (never `--approve`, never `--request-changes`) with:
+7. Post **one PR conversation comment** with `gh pr comment` (not `--request-changes`,
+   not a buried review thread). The comment body includes:
    - `**Verdict: PASS**` or `**Verdict: CHANGES REQUESTED**`
    - a short criteria table
    - Must fix / Should fix / Nice to have
    - Keep under 600 words
+   Do **not** run `gh pr review --approve` yourself — Actions approves as `$PR_ASSIGNEE` on PASS.
 8. End the comment with exactly one of these lines (Actions parses it):
 
 ```

@@ -28,6 +28,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
       AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
+      PR_ASSIGNEE: ${{ vars.PR_ASSIGNEE || 'KitheK' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,7 +66,8 @@ jobs:
             "- root \`AGENTS.md\`" \
             "- queue order in \`docs/overnight-queue.md\`" \
             "" \
-            "Open one **draft** PR (\`Closes #$n\`), label \`overnight-agent\`, remove \`overnight-queue\`." \
+            "Open one **draft** PR (\`Closes #$n\`), label \`overnight-agent\`, **assign to \`$PR_ASSIGNEE\`**, remove \`overnight-queue\`." \
+            "Post updates with \`gh issue comment\` / \`gh pr comment\` (normal conversation comments)." \
             "If blocked, add \`needs-human\`.")
           gh issue comment "$n" --body "$body"
           echo "Handed off #$n to $AGENT_PROVIDER. Cursor/Grokbot must open the PR."
@@ -102,7 +104,8 @@ jobs:
             --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
           prompt: |
             Follow .github/agents/prompts/overnight-agent.md exactly.
-            Substitute $REPO=${{ github.repository }}.
+            Substitute $REPO=${{ github.repository }} and $PR_ASSIGNEE=${{ vars.PR_ASSIGNEE || 'KitheK' }}.
+            Assign the draft PR to $PR_ASSIGNEE. Use gh issue comment / gh pr comment for updates.
 
       - name: Fail if Claude opened no PR
         if: always() && env.AGENT_PROVIDER == 'claude'

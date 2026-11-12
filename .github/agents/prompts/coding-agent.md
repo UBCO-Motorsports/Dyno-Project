@@ -12,8 +12,10 @@ Implement GitHub issue `$ISSUE` in `$REPO`.
    **Green:** smallest code that matches; commit `feat: ...` or `fix: ...`.
 5. Before pushing, run `bash scripts/ci-local.sh` or `.\scripts\ci-local.ps1` until it passes.
 6. Open a **DRAFT** PR from `.github/pull_request_template.md`: `Closes #$ISSUE`, red evidence, green evidence, notes.
-   Label the PR `overnight-agent`. Lola will review it.
-7. Comment on the issue with the PR link. Remove `agent-now` and `overnight-queue` from the issue.
+   Label the PR `overnight-agent`. Assign it to `$PR_ASSIGNEE` (default `KitheK`):
+   `gh pr edit <pr> --add-assignee $PR_ASSIGNEE`. Lola will review it.
+7. Comment on the issue with the PR link (`gh issue comment` — a normal conversation comment).
+   Remove `agent-now` and `overnight-queue` from the issue.
 
 Never push to `main`, never merge, never edit `.github/workflows/`, never enable auto-merge,
 never add dependencies unless the issue names them, never treat the laptop as the safety system,

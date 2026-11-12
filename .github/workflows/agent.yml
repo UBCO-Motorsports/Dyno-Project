@@ -87,8 +87,9 @@ jobs:
             "- \`.github/agents/prompts/coding-agent.md\`" \
             "- root \`AGENTS.md\`" \
             "" \
-            "Substitute \`\$ISSUE=$ISSUE\` and \`\$REPO=$GITHUB_REPOSITORY\`." \
-            "Open one **draft** PR, label it \`overnight-agent\`, remove \`agent-now\` / \`overnight-queue\`." \
+            "Substitute \`\$ISSUE=$ISSUE\`, \`\$REPO=$GITHUB_REPOSITORY\`, \`\$PR_ASSIGNEE=${{ vars.PR_ASSIGNEE || 'KitheK' }}\`." \
+            "Open one **draft** PR, label it \`overnight-agent\`, **assign to \$PR_ASSIGNEE**, remove \`agent-now\` / \`overnight-queue\`." \
+            "Post updates with \`gh issue comment\` / \`gh pr comment\` (normal conversation comments)." \
             "If blocked, add \`needs-human\` and comment." \
             "" \
             "<!-- grok-work-now issue=$ISSUE -->")
@@ -125,7 +126,9 @@ jobs:
             --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
           prompt: |
             Follow .github/agents/prompts/coding-agent.md exactly.
-            Substitute $ISSUE=${{ steps.issue.outputs.number }} and $REPO=${{ github.repository }}.
+            Substitute $ISSUE=${{ steps.issue.outputs.number }}, $REPO=${{ github.repository }},
+            and $PR_ASSIGNEE=${{ vars.PR_ASSIGNEE || 'KitheK' }}.
+            Assign the draft PR to $PR_ASSIGNEE. Use gh issue comment / gh pr comment for updates.
 
       - name: Fail if Claude opened no PR
         if: always() && env.AGENT_PROVIDER == 'claude'
