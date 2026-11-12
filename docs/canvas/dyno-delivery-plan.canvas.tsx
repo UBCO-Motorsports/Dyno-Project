@@ -1016,9 +1016,9 @@ export default function DynoArchitectureReview() {
         <Table
           headers={["#", "Sprint", "Dates", "Working at the end", "Who reviews", "Decision needed"]}
           rows={[
-            [strong("1"), cell("Checkpoint"), cell("Tue 3 Nov"), cell("Answers merged (#5)"), cell("Owen and Alex, Electrical, Mechanical, safety owners"), cell("Real answers, or a promised date for each")],
-            [strong("2"), cell("S1"), cell("28 Oct – 5 Nov"), cell("CI on (#36); limits, log columns, bad inputs, sample record; boards compared (#37)"), cell("Project lead; Electrical"), cell("Agree the MVP scope; pick the board (order Fri 6 Nov)")],
-            [strong("3"), cell("S2"), cell("6 – 12 Nov"), cell("Calibration fit, CSV writer, state machine, interfaces, pedal pair, rig config, link messages"), cell("Owen and Alex; Electrical"), cell("Approve the dead-weight procedure, the link messages and the pedal voltages")],
+            [strong("1"), cell("Checkpoint"), cell("Tue 3 Nov"), cell("Answers merged (#5) — still open"), cell("Owen and Alex, Electrical, Mechanical, safety owners"), cell("Chase in person; promised dates if not ready")],
+            [strong("2"), cell("S1"), cell("28 Oct – 5 Nov"), cell("CI + maths on main; #37 board still open"), cell("Project lead; Electrical"), cell("Coding done; board pick carried into S2")],
+            [strong("3"), cell("S2"), cell("6 – 12 Nov · now"), cell("Calibration, CSV, state machine, interfaces, pedal, config, link messages"), cell("Owen and Alex; Electrical"), cell("Approve the dead-weight procedure, the link messages and the pedal voltages")],
             [strong("4"), cell("S3"), cell("13 – 19 Nov"), cell("Whole MVP flow on the simulator; controller reads the load cell; bench calibration"), cell("Project lead, operators; Owen and Alex"), cell("Screen feedback; sign calibration; rig ready, or use the bench fallback")],
             [strong("5"), cell("Checkpoint"), cell("Mon 23 – Tue 24 Nov"), cell("Bench drills: unplug USB, press E-stop"), cell("Mechanical and Electrical safety owners"), cell("Written sign-off on #31")],
             [strong("6"), cell("S4"), cell("20 – 26 Nov"), cell("MVP: first low-load spin on Wed 25 Nov, logged and plotted"), cell("Project lead, Electrical, Owen and Alex"), cell("Logged power matches a hand calculation: MVP accepted?")],
