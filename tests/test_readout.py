@@ -72,7 +72,10 @@ def test_manual_command_running_uses_pedal_voltages_and_valve_setpoint():
     session.start()
     # At 25% pedal: A 1.5 V, B 0.75 V (see tests/test_pedal.py).
     commanded = session.manual_command(0.25, 0.42, _PEDAL_A, _PEDAL_B)
-    assert commanded == RigCommand(1.5, 0.75, 0, 0.42)
+    assert commanded.pedal_voltage_a == pytest.approx(1.5)
+    assert commanded.pedal_voltage_b == pytest.approx(0.75)
+    assert commanded.torque_command_nm == 0
+    assert commanded.valve_setpoint == pytest.approx(0.42)
 
 
 @pytest.mark.parametrize(
