@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from dyno.pedal import PedalLimits, clamp_pedal, stopped_pedal
@@ -21,3 +23,10 @@ def test_stopped_pedal_is_zero():
 def test_inverted_limits_are_rejected():
     with pytest.raises(ValueError, match="limits"):
         PedalLimits(minimum_v=4, maximum_v=1)
+
+
+def test_non_finite_limits_are_rejected():
+    with pytest.raises(ValueError, match="limits"):
+        PedalLimits(minimum_v=math.nan, maximum_v=4.5)
+    with pytest.raises(ValueError, match="limits"):
+        PedalLimits(minimum_v=0.5, maximum_v=math.inf)
