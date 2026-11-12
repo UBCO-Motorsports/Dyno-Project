@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -8,7 +8,7 @@ from dyno.summary import summarise
 
 def _sample(torque: float, speed: float) -> Sample:
     return Sample(
-        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=timezone.utc),
+        timestamp_utc=datetime(2026, 10, 19, 22, 0, tzinfo=UTC),
         torque_nm=torque,
         speed_rpm=speed,
         strain=0,
