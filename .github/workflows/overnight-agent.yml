@@ -1,0 +1,84 @@
+# Nightly builder: picks ONE overnight-queue issue and opens a draft PR for morning review.
+# Opt in with:  gh variable set ENABLE_OVERNIGHT_AGENT --body true
+# Runs count against the usage limits of the subscription behind CLAUDE_CODE_OAUTH_TOKEN.
+# Uses GH_PAT so the PR triggers CI and Lola (see agent.yml header).
+# Check https://github.com/anthropics/claude-code-action for current input names.
+
+name: Overnight agent nightly
+
+on:
+  schedule:
+    - cron: "17 10 * * *"   # 2:17 AM Pacific Standard Time (10:17 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: overnight-agent
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    if: vars.ENABLE_OVERNIGHT_AGENT == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Language server for the LSP plugin
+        run: pip install pyright
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_PAT }}
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+            https://github.com/DietrichGebert/ponytail.git
+          plugins: |
+            ponytail@ponytail
+            security-guidance@claude-plugins-official
+            pyright-lsp@claude-plugins-official
+          claude_args: >-
+            --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
+          prompt: |
+            You are the overnight coding agent for ${{ github.repository }}. Do exactly one issue.
+
+            1. Pick the issue:
+               - Prefer the order in docs/overnight-queue.md ("Next issues to open as PRs").
+               - Confirm it is still open with label overnight-queue:
+                 `gh issue list --state open --label overnight-queue --json number,title,labels --limit 100`
+               - Exclude needs-human, board: blocked, field task, difficulty: expert.
+               - Exclude issues that already have an open PR closing them
+                 (`gh pr list --state open --search "Closes #<n>"`).
+               - Among the rest, take the first row from the queue file that still qualifies;
+                 if the queue file is stale, take the lowest issue number.
+               - If nothing qualifies, stop without changes and write a short job summary.
+            2. Read AGENTS.md, the issue, and docs/open-questions.md when hardware numbers appear.
+               If criteria are ambiguous or a required value is unanswered, comment with questions,
+               add needs-human, and stop. Do not invent hardware numbers.
+            3. Branch issue-<n>-<short-name>. Red-first TDD as in AGENTS.md (test commit that fails
+               for a real reason, then feat/fix). Before pushing, run `bash scripts/ci-local.sh`
+               (or the Commands in AGENTS.md) until it passes. Never claim a check passed unless you ran it.
+            4. Open a **DRAFT** PR whose body fills `.github/pull_request_template.md`:
+               Closes #<n>, red evidence, green evidence, notes. Label the PR overnight-agent.
+               Remove overnight-queue from the issue. Comment on the issue with the PR link.
+            5. Stop. Do not start a second issue. Do not merge.
+
+            Never push to main, never merge, never edit .github/workflows/, never enable auto-merge,
+            never add dependencies unless the issue names them, never treat the laptop as the safety system,
+            never spin the motor / connect the tractive battery / drive the physical valve.

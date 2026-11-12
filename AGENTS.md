@@ -10,9 +10,11 @@ The laptop program in this repo is a supervisor for a water-brake dynamometer. I
 
 | Role | Job | Must not |
 | --- | --- | --- |
-| Overnight coding agent | Pick the next `overnight-queue` issue, implement it with TDD, open one PR labelled `overnight-agent` | Merge, invent hardware numbers, touch blocked or field issues |
-| Lola (CI review) | After CI finishes on a PR, review the diff against this file and the issue; post a review comment | Merge, rewrite the PR, invent requirements the issue did not state |
+| Overnight coding agent | Pick the next `overnight-queue` issue (nightly) or an `agent-now` issue (immediate); implement with TDD; open one **draft** PR labelled `overnight-agent` | Merge, invent hardware numbers, touch blocked or field issues, edit `.github/workflows/` |
+| Lola (CI review) | After CI is green on a PR, review the diff against this file and the issue; post one review; set the `lola-review` check to PASS or CHANGES | Merge, rewrite the PR, invent requirements the issue did not state, `--approve` |
 | Human reviewer | Run the tests, check the red evidence, approve or request changes | Rubber-stamp green CI as a review |
+
+Live wiring: [`.github/workflows/`](.github/workflows/) and setup steps in [`docs/github-setup.md`](docs/github-setup.md). Lola and nightly stay off until `ENABLE_LOLA` / `ENABLE_OVERNIGHT_AGENT` are `true` and secrets exist.
 
 ---
 
@@ -29,16 +31,17 @@ An issue may carry `overnight-queue` only when **all** of these are true:
 
 Blocked, gated, or conversation-only work stays out: `#5`, `#31`, `#37`, `#42` (until the board is chosen and on the bench), `#47`, `#48`, `#35`.
 
-The ordered queue lives in [`docs/overnight-queue.md`](docs/overnight-queue.md). Overnight runs take issues from the top of that list that still have `overnight-queue` and no open PR closing them.
+The ordered queue lives in [`docs/overnight-queue.md`](docs/overnight-queue.md). Nightly runs (`overnight-agent.yml`, when `ENABLE_OVERNIGHT_AGENT=true`) take issues from the top of that list that still have `overnight-queue` and no open PR closing them. The `agent-now` label starts one run immediately (`agent.yml`); `overnight-queue` alone never starts a run.
 
 ### How the overnight agent opens a PR
 
 1. Restate the issue in one short paragraph: what you will change, what you will not change, and which acceptance lines you will prove.
 2. Branch from current `main`: `issue-<number>-<short-name>`.
 3. **Red first.** Add or extend the tests from the issue. Commit `test: ...`. Run them. They must fail for a real reason (missing symbol, failed assertion). Paste that failure into the PR. A red that says `collected 0 items` or that never imported the new test file does not count.
-4. **Green.** Implement the smallest code that matches the issue. Commit `feat: ...` (or `fix: ...`). Run `python -m pytest -q` and, when present, `ruff check .`.
-5. Open **one** PR that closes **one** issue. Fill `.github/pull_request_template.md`. Label the PR `overnight-agent`. Do not also label unrelated open PRs.
-6. Stop. Do not merge. Do not start a second issue in the same run unless the queue file says the pair must land together (they almost never do).
+4. **Green.** Implement the smallest code that matches the issue. Commit `feat: ...` (or `fix: ...`). Run `bash scripts/ci-local.sh` or `.\scripts\ci-local.ps1` (same steps as CI). Never claim a check passed unless you ran it.
+5. Open **one draft** PR that closes **one** issue. Fill `.github/pull_request_template.md`. Label the PR `overnight-agent`. Remove `overnight-queue` / `agent-now` from the issue. Do not also label unrelated open PRs.
+6. If you cannot finish: comment, add `needs-human`, stop. Never end silently.
+7. Stop. Do not merge. Do not start a second issue in the same run unless the queue file says the pair must land together (they almost never do).
 
 ### Hard limits for overnight runs
 
@@ -46,7 +49,9 @@ The ordered queue lives in [`docs/overnight-queue.md`](docs/overnight-queue.md).
 - Do not invent CAN ids, pedal voltages, arm lengths, or safe valve positions. If `docs/open-questions.md` has no answer, keep the value as a function argument and use the example from the issue tests.
 - Do not edit `docs/open-questions.md` answers, safety sign-off checklists, or firmware wiring as part of a maths or logging issue.
 - Do not add dependencies unless the issue names them.
+- Do not edit `.github/workflows/`.
 - Do not push to `main`. Do not enable auto-merge.
+- Use a fine-grained `GH_PAT` for push/PR so CI and Lola still run (see [`docs/github-setup.md`](docs/github-setup.md)).
 
 ---
 
@@ -69,13 +74,13 @@ Two commits when possible (`test:` then `feat:`). One commit is fine if both red
 
 ## Lola as an extension of CI
 
-Lola is the automated review step that runs when GitHub CI finishes on a pull request. CI proves the suite is green. Lola proves the change matches the issue and is not tautological. Neither replaces a human approval on `main`.
+Lola is the automated review step in [`.github/workflows/lola-review.yml`](.github/workflows/lola-review.yml). CI proves the suite is green. Lola proves the change matches the issue and is not tautological. The job posts one review comment and fails the **`lola-review`** status check on CHANGES (labels `review:pass` / `review:changes`). Neither replaces a human merge on `main`.
 
 ### When Lola runs
 
-- Trigger: CI completed on a pull request in `UBCO-Motorsports/Dyno-Project`.
-- If CI failed: comment with the failing job name and the first real error line; do not approve; do not rewrite the branch unless a separate autofix automation owns that.
-- If CI passed: review the diff against the linked issue and this file, then post a single review (comment, or approve only when every check below passes).
+- Trigger: pull request opened / synchronized / reopened / ready for review (same-repo branches only).
+- Lola waits for the `tests` checks. If CI failed or timed out: comment with the failing job name, set CHANGES, do not rewrite the branch.
+- If CI passed: review the diff against the linked issue and this file, then post a single **comment** review (never `--approve`).
 
 ### What Lola checks
 
@@ -85,18 +90,19 @@ Lola is the automated review step that runs when GitHub CI finishes on a pull re
 4. **Units and names.** Public names keep units (`torque_nm`, `speed_rpm`, `power_kw`, …).
 5. **No invented hardware.** No new literal for arm length, pedal volts, CAN id, or safe valve outside example tests or `rig.example.toml`.
 6. **Tautology.** Apply the section below. If a test cannot fail when the behaviour is wrong, request changes.
-7. **Scope.** No drive-by refactors, no extra features the issue did not ask for (unless the PR notes them and they are clearly separated).
+7. **Scope.** No drive-by refactors, no extra features the issue did not ask for (unless the PR notes them and they are clearly separated). No workflow edits by coding agents.
 8. **Safety boundary.** No code that talks to the physical rig, skips the E-stop story, or treats the laptop as the safety system.
 
 ### What Lola must not do
 
 - Merge the PR.
+- Approve (`gh pr review --approve`) — humans only.
 - Approve when CI is red.
-- Approve its own follow-up commits without a new CI run.
+- Treat its own follow-up commits as reviewed without a new CI + Lola run.
 - Ask for style-only nits (import order, comment taste) when behaviour and tests are sound.
 - Demand stakeholder sign-off that the issue deferred until hardware use.
 
-Human reviewers still run `python -m pytest` locally (or trust a CI run they opened themselves) and are the only merge authority until branch protection says otherwise.
+Human reviewers still run `.\scripts\ci-local.ps1` (or trust a CI run they opened themselves) and are the only merge authority.
 
 ---
 
@@ -171,11 +177,12 @@ Approve only when Must-fix is empty and CI is green. The author never merges the
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m ruff check .
+.\scripts\ci-local.ps1
 ```
 
-Expected load: one operator on one laptop, plus CI on each PR. Do not design for multi-tenant servers.
+Same checks as GitHub CI (install, ruff, pytest, guardrails). On Ubuntu agents: `bash scripts/ci-local.sh`.
+
+Expected load: one operator on one laptop, plus CI and Lola on each PR. Do not design for multi-tenant servers.
 
 ---
 
@@ -186,4 +193,4 @@ Expected load: one operator on one laptop, plus CI on each PR. Do not design for
 - Two attempts at the same approach failed.
 - Changing branch protection, secrets, or who may merge.
 
-Report what you tried and stop. Do not loop.
+Comment on the issue, add `needs-human`, report what you tried, and stop. Do not loop.

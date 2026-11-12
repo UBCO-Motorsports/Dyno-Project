@@ -7,6 +7,8 @@ This folder explains the project in plain words. You do not need to know Python,
 | This page | First. What we are building, the words we use, and how to do your first issue |
 | [delivery-plan.md](delivery-plan.md) | You want the dates: sprints, reviews, and the 11 January deadline |
 | [open-questions.md](open-questions.md) | You need a real hardware number (arm length, pedal voltage, CAN id). If it is not answered there, do not guess it |
+| [overnight-queue.md](overnight-queue.md) | You are labelling work for the overnight coding agent |
+| [github-setup.md](github-setup.md) | You are wiring secrets, Lola, or the overnight agent on GitHub Actions |
 | [canvas/dyno-delivery-plan.canvas.tsx](canvas/dyno-delivery-plan.canvas.tsx) | You use Cursor and want the interactive version of the plan, with diagrams (see the end of this page) |
 
 ## The project in five minutes
