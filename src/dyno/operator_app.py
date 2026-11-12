@@ -6,12 +6,32 @@ from datetime import UTC, datetime
 
 from dyno.pedal import PedalLimits
 from dyno.readout import OperatorSession
-from dyno.run_state import TestRun
+from dyno.run_state import RigCommand, TestRun
 from dyno.sample import Sample
 
 # Example limits from rig.example.toml — confirm on bench before real use.
 _EXAMPLE_PEDAL_A = PedalLimits(minimum_v=0.5, maximum_v=4.5)
 _EXAMPLE_PEDAL_B = PedalLimits(minimum_v=0.25, maximum_v=2.25)
+
+
+def _command_is_safe(commanded: RigCommand, safe_valve_setpoint: float) -> bool:
+    return commanded == RigCommand(0, 0, 0, safe_valve_setpoint)
+
+
+def format_manual_apply_feedback(
+    commanded: RigCommand,
+    *,
+    safe_valve_setpoint: float,
+) -> tuple[str, str]:
+    """Headless-friendly copy for the window after Apply (last-applied line, status)."""
+    valve = commanded.valve_setpoint
+    pedals = (
+        f"pedals {commanded.pedal_voltage_a:g} V / {commanded.pedal_voltage_b:g} V, "
+        f"valve {valve:g}"
+    )
+    if _command_is_safe(commanded, safe_valve_setpoint):
+        return (f"Last applied: safe command — {pedals}", "Not running: safe command sent")
+    return (f"Last applied: {pedals}", "")
 
 
 def build_session(sample: Sample, safe_valve_setpoint: float) -> OperatorSession:
@@ -35,7 +55,8 @@ def main() -> None:
         pedal_voltage_b=0.5,
         run_state="idle",
     )
-    session = build_session(sample, safe_valve_setpoint=0.0)
+    safe_valve_setpoint = 0.0
+    session = build_session(sample, safe_valve_setpoint=safe_valve_setpoint)
 
     root = tk.Tk()
     root.title("Dyno")
@@ -89,7 +110,7 @@ def main() -> None:
             status_var.set("Enter numeric pedal and valve values.")
             return
         try:
-            session.manual_command(
+            commanded = session.manual_command(
                 pedal_pct / 100.0,
                 valve,
                 _EXAMPLE_PEDAL_A,
@@ -98,10 +119,11 @@ def main() -> None:
         except ValueError as exc:
             status_var.set(str(exc))
             return
-        status_var.set("")
-        last_applied_var.set(
-            f"Last applied: Pedal {pedal_pct:g}%  Valve {valve:g}"
+        last_applied, status = format_manual_apply_feedback(
+            commanded, safe_valve_setpoint=safe_valve_setpoint
         )
+        last_applied_var.set(last_applied)
+        status_var.set(status)
 
     tk.Button(manual, text="Apply", command=on_apply).grid(row=0, column=4, padx=8)
     tk.Label(root, textvariable=last_applied_var, anchor=tk.W).pack(padx=12, fill=tk.X)
