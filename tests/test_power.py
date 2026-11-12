@@ -30,3 +30,7 @@ def test_power_rejects_non_finite_numbers():
 
 def test_negative_torque_stays_visible():
     assert mechanical_power_kw(torque_nm=-5, speed_rpm=1000) < 0
+
+
+def test_stopped_motor_is_zero_power():
+    assert mechanical_power_kw(torque_nm=10, speed_rpm=0) == 0
