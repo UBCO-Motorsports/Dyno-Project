@@ -34,14 +34,22 @@ gh issue comment 10 --body "/grok now"
 Whatever provider writes the review must:
 
 1. Follow [prompts/lola-review.md](prompts/lola-review.md) and `AGENTS.md`.
-2. Post **one** PR review **comment** (not approve / request-changes).
+2. Post **one** PR **conversation comment** with `gh pr comment` (not `--request-changes`).
 3. Include a line exactly like:
    - `Lola-Verdict: PASS` or
    - `Lola-Verdict: CHANGES`
-4. Never merge.
+4. Never merge. Do not approve from the prompt — Actions approves as `PR_ASSIGNEE` on PASS via `GH_PAT`.
 
-Actions then labels `review:pass` / `review:changes` and fails the `lola-review` check on CHANGES.
+Actions then labels `review:pass` / `review:changes`, may approve as the owner token, and fails the `lola-review` check on CHANGES.
+
+## Ownership
+
+Repo variable `PR_ASSIGNEE` (default `KitheK`) plus secret `GH_PAT` for that account:
+
+- New PRs are assigned to `PR_ASSIGNEE` ([pr-assign.yml](../workflows/pr-assign.yml)).
+- Agent / Lola GitHub writes use `GH_PAT`, so comments and approvals appear as that user.
+- Updates are normal conversation comments (`gh pr comment` / `gh issue comment`).
 
 ## Machine contract for coding agents
 
-Follow [prompts/coding-agent.md](prompts/coding-agent.md) or [prompts/overnight-agent.md](prompts/overnight-agent.md): one draft PR, `overnight-agent` label, red→green evidence, no workflow edits, `needs-human` if stuck.
+Follow [prompts/coding-agent.md](prompts/coding-agent.md) or [prompts/overnight-agent.md](prompts/overnight-agent.md): one draft PR, assign `PR_ASSIGNEE`, `overnight-agent` label, red→green evidence, no workflow edits, `needs-human` if stuck.
