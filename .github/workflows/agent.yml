@@ -1,13 +1,25 @@
-# Coding agent on demand: label an issue `agent-now`.
+# Ask Grok (or the active AGENT_PROVIDER) to work on an issue immediately.
+#
+# Buttons / triggers:
+#   1. Actions → "Coding agent" → Run workflow → enter issue number  (the Run button)
+#   2. Comment `/grok` or `/grok now` on an issue (OWNER/MEMBER/COLLABORATOR)
+#   3. Add the `agent-now` label
+#
 # Provider: AGENT_PROVIDER=cursor|grok|claude (see .github/agents/README.md).
-# For cursor/grok, Actions posts the prompt hand-off; Grokbot/Cursor opens the draft PR.
-# For claude, Claude Code Action runs in this job (needs CLAUDE_CODE_OAUTH_TOKEN + GH_PAT).
 
 name: Coding agent
 
 on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number for Grok/coding agent to implement now
+        required: true
+        type: string
   issues:
     types: [labeled]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -17,51 +29,75 @@ permissions:
   actions: read
 
 jobs:
-  implement-labeled-issue:
-    if: github.event.label.name == 'agent-now'
+  implement-now:
+    # Label, Run-workflow button, or /grok comment from a repo member.
+    if: |
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'issues' && github.event.label.name == 'agent-now') ||
+      (github.event_name == 'issue_comment' &&
+        !github.event.issue.pull_request &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+        (startsWith(github.event.comment.body, '/grok') ||
+         contains(github.event.comment.body, '/grok now')))
     runs-on: ubuntu-latest
     concurrency:
-      group: agent-issue-${{ github.event.issue.number }}
-      cancel-in-progress: false
+      # One run per issue; a /grok comment must not stack with a later agent-now label.
+      group: agent-issue-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number || github.event.issue.number }}
+      cancel-in-progress: true
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
       AGENT_PROVIDER: ${{ vars.AGENT_PROVIDER || 'cursor' }}
-      ISSUE: ${{ github.event.issue.number }}
     steps:
+      - name: Resolve issue number
+        id: issue
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            n="${{ github.event.inputs.issue_number }}"
+          else
+            n="${{ github.event.issue.number }}"
+          fi
+          n=$(echo "$n" | tr -d '[:space:]#')
+          if ! printf '%s' "$n" | grep -Eq '^[0-9]+$'; then
+            echo "::error::Invalid issue number: $n"; exit 1
+          fi
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+          echo "ISSUE=$n" >> "$GITHUB_ENV"
+          echo "Resolved ISSUE=$n (trigger=${{ github.event_name }}, provider=$AGENT_PROVIDER)"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
-      - name: Resolve provider
-        id: prov
-        run: |
-          echo "AGENT_PROVIDER=$AGENT_PROVIDER"
-          echo "provider=$AGENT_PROVIDER" >> "$GITHUB_OUTPUT"
+      - name: Clear stale needs-human
+        run: gh issue edit "$ISSUE" --remove-label "needs-human" || true
 
       # ----- cursor | grok: hand off to Grokbot / Cursor -----
-      - name: Hand off to external coding agent
+      - name: Hand off to Grok / Cursor now
         if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
         run: |
           body=$(printf '%s\n' \
-            "### Coding-agent hand-off (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
+            "### Grok — work now (\`AGENT_PROVIDER=$AGENT_PROVIDER\`)" \
             "" \
-            "Label \`agent-now\` was added. Run the coding agent with:" \
+            "**Immediate run requested** (trigger: \`${{ github.event_name }}\`)." \
+            "" \
+            "Implement issue #$ISSUE using:" \
             "- \`.github/agents/prompts/coding-agent.md\`" \
             "- root \`AGENTS.md\`" \
             "" \
             "Substitute \`\$ISSUE=$ISSUE\` and \`\$REPO=$GITHUB_REPOSITORY\`." \
             "Open one **draft** PR, label it \`overnight-agent\`, remove \`agent-now\` / \`overnight-queue\`." \
-            "If blocked, add \`needs-human\` and comment.")
+            "If blocked, add \`needs-human\` and comment." \
+            "" \
+            "<!-- grok-work-now issue=$ISSUE -->")
           gh issue comment "$ISSUE" --body "$body"
-          echo "handed_off=true" >> "$GITHUB_OUTPUT"
 
-      - name: External provider — do not fail this job on missing PR
+      - name: External provider owns the PR
         if: env.AGENT_PROVIDER == 'cursor' || env.AGENT_PROVIDER == 'grok'
         run: |
-          echo "Provider $AGENT_PROVIDER owns the implementation outside this job."
-          echo "When the draft PR lands, CI + Lola still run on GitHub."
+          echo "Handed off #$ISSUE to $AGENT_PROVIDER. Open the issue and watch for the draft PR."
 
       # ----- claude -----
       - uses: actions/setup-python@v5
@@ -89,12 +125,12 @@ jobs:
             --allowedTools "Bash(python:*),Bash(python3:*),Bash(pip:*),Bash(py:*),Bash(pytest:*),Bash(ruff:*),Bash(git:*),Bash(gh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(cp:*),Bash(mv:*),Bash(rm:*),Bash(touch:*),Bash(chmod:*),Bash(find:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(echo:*),Bash(cd:*),Bash(pwd),Bash(test:*),Bash(bash scripts/*),Bash(scripts/*),Edit,Write,Read,Glob,Grep,Task"
           prompt: |
             Follow .github/agents/prompts/coding-agent.md exactly.
-            Substitute $ISSUE=${{ github.event.issue.number }} and $REPO=${{ github.repository }}.
+            Substitute $ISSUE=${{ steps.issue.outputs.number }} and $REPO=${{ github.repository }}.
 
       - name: Fail if Claude opened no PR
         if: always() && env.AGENT_PROVIDER == 'claude'
         run: |
-          n=${{ github.event.issue.number }}
+          n=$ISSUE
           if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number --jq 'length' | grep -qx '[1-9][0-9]*'; then
             echo "PR found for #$n"; exit 0
           fi

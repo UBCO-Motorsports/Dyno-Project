@@ -10,7 +10,7 @@ The laptop program in this repo is a supervisor for a water-brake dynamometer. I
 
 | Role | Job | Must not |
 | --- | --- | --- |
-| Overnight coding agent | Pick the next `overnight-queue` issue (nightly) or an `agent-now` issue (immediate); implement with TDD; open one **draft** PR labelled `overnight-agent` | Merge, invent hardware numbers, touch blocked or field issues, edit `.github/workflows/` |
+| Overnight coding agent | Pick the next `overnight-queue` issue (nightly) or an immediate run (`agent-now` label, `/grok` comment, or Actions **Run workflow**); implement with TDD; open one **draft** PR labelled `overnight-agent` | Merge, invent hardware numbers, touch blocked or field issues, edit `.github/workflows/` |
 | Lola (CI review) | After CI is green on a PR, review the diff against this file and the issue; post one review; set the `lola-review` check to PASS or CHANGES | Merge, rewrite the PR, invent requirements the issue did not state, `--approve` |
 | Human reviewer | Run the tests, check the red evidence, approve or request changes | Rubber-stamp green CI as a review |
 

@@ -9,6 +9,7 @@ This folder explains the project in plain words. You do not need to know Python,
 | [open-questions.md](open-questions.md) | You need a real hardware number (arm length, pedal voltage, CAN id). If it is not answered there, do not guess it |
 | [overnight-queue.md](overnight-queue.md) | You are labelling work for the overnight coding agent |
 | [github-setup.md](github-setup.md) | You are wiring secrets, Lola, or the overnight agent on GitHub Actions |
+| [Run Coding agent](https://github.com/UBCO-Motorsports/Dyno-Project/actions/workflows/agent.yml) | **Button:** ask Grok to work on an issue now (Run workflow → issue number), or comment `/grok now` on the issue |
 | [canvas/dyno-delivery-plan.canvas.tsx](canvas/dyno-delivery-plan.canvas.tsx) | You use Cursor and want the interactive version of the plan, with diagrams (see the end of this page) |
 
 ## The project in five minutes
