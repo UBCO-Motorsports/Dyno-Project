@@ -10,9 +10,7 @@ Skipped on purpose (not overnight work): field / stakeholder conversations (`#5`
 
 | PR | Issue | Notes |
 | --- | --- | --- |
-| [#54](https://github.com/UBCO-Motorsports/Dyno-Project/pull/54) | #36 CI | Already labelled `overnight-agent` |
-| [#53](https://github.com/UBCO-Motorsports/Dyno-Project/pull/53) | #6 Reject bad inputs | Non-blocking coding PR — labelled `overnight-agent` for the review/fix loop |
-| [#51](https://github.com/UBCO-Motorsports/Dyno-Project/pull/51) | docs delivery plan | Non-blocking docs — labelled `overnight-agent` for Lola CI review |
+| _(none)_ | — | #54 CI, #53 reject bad inputs, and #51 delivery plan are on `main` |
 
 ## Next issues to open as PRs (top first)
 
