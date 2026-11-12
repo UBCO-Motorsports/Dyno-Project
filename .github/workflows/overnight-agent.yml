@@ -67,18 +67,45 @@ jobs:
                  (`gh pr list --state open --search "Closes #<n>"`).
                - Among the rest, take the first row from the queue file that still qualifies;
                  if the queue file is stale, take the lowest issue number.
-               - If nothing qualifies, stop without changes and write a short job summary.
-            2. Read AGENTS.md, the issue, and docs/open-questions.md when hardware numbers appear.
+               - If nothing qualifies: write exactly `NONE` to overnight-picked.txt, write a short
+                 job summary, and stop without changes.
+            2. When you pick an issue, write its number alone to overnight-picked.txt (example: `10`).
+            3. Read AGENTS.md, the issue, and docs/open-questions.md when hardware numbers appear.
                If criteria are ambiguous or a required value is unanswered, comment with questions,
                add needs-human, and stop. Do not invent hardware numbers.
-            3. Branch issue-<n>-<short-name>. Red-first TDD as in AGENTS.md (test commit that fails
+            4. Branch issue-<n>-<short-name>. Red-first TDD as in AGENTS.md (test commit that fails
                for a real reason, then feat/fix). Before pushing, run `bash scripts/ci-local.sh`
                (or the Commands in AGENTS.md) until it passes. Never claim a check passed unless you ran it.
-            4. Open a **DRAFT** PR whose body fills `.github/pull_request_template.md`:
+            5. Open a **DRAFT** PR whose body fills `.github/pull_request_template.md`:
                Closes #<n>, red evidence, green evidence, notes. Label the PR overnight-agent.
                Remove overnight-queue from the issue. Comment on the issue with the PR link.
-            5. Stop. Do not start a second issue. Do not merge.
+            6. Stop. Do not start a second issue. Do not merge.
 
             Never push to main, never merge, never edit .github/workflows/, never enable auto-merge,
             never add dependencies unless the issue names them, never treat the laptop as the safety system,
             never spin the motor / connect the tractive battery / drive the physical valve.
+            Never end silently: if you cannot finish an issue you picked, comment, add needs-human, and stop.
+
+      - name: Fail if the agent opened no PR
+        if: always()
+        run: |
+          set -euo pipefail
+          picked=$(tr -d '[:space:]' < overnight-picked.txt 2>/dev/null || echo MISSING)
+          echo "overnight-picked: $picked"
+          if [ "$picked" = "NONE" ]; then
+            echo "Queue empty; nothing to do."; exit 0
+          fi
+          if [ "$picked" = "MISSING" ] || ! printf '%s' "$picked" | grep -Eq '^[0-9]+$'; then
+            echo "::error::Agent did not write a valid overnight-picked.txt (got: $picked)"; exit 1
+          fi
+          n=$picked
+          if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number --jq 'length' | grep -qx '[1-9][0-9]*'; then
+            echo "PR found for #$n"; exit 0
+          fi
+          if gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName,number --jq "[.[] | select(.headRefName | startswith(\"issue-$n-\"))] | length" | grep -qx '[1-9][0-9]*'; then
+            echo "PR found by branch prefix for #$n"; exit 0
+          fi
+          if gh issue view "$n" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx needs-human; then
+            echo "No PR, but #$n was handed back with needs-human"; exit 0
+          fi
+          echo "::error::Overnight agent finished without a PR or needs-human for #$n"; exit 1

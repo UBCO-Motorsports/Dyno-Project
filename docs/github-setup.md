@@ -90,7 +90,9 @@ gh variable set ENABLE_OVERNIGHT_AGENT --body true
 - **Rules → branch ruleset for `main`:**
   - Require a pull request.
   - Require status checks `tests (3.11)`, `tests (3.14)`, and `lola-review` (add `lola-review` after its first green run appears in the picker).
-  - Prefer requiring one human approval when the author is not the only reviewer. Agent PRs opened with your `GH_PAT` count as yours — GitHub will not let you approve your own PR, so either use a bot account for `GH_PAT` or rely on the two automated checks plus your merge click.
+  - `lola-review` always reports: when `ENABLE_LOLA` is false it exits success without reviewing, so turning Lola off does not freeze merges. Prefer keeping `ENABLE_LOLA=true` once secrets work.
+  - Prefer requiring one human approval when the author is not the only reviewer. Agent PRs opened with your `GH_PAT` count as yours — GitHub will not let you approve your own PR, so either use a bot account for `GH_PAT` or rely on the automated checks plus your merge click.
+  - Lola only posts **comment** reviews (never approve / request-changes). The failed `lola-review` check is the gate.
 
 ## Step 3. Smoke test
 

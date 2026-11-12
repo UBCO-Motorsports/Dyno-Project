@@ -4,6 +4,8 @@
 #
 # Secrets: CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`).
 # Opt in: gh variable set ENABLE_LOLA --body true
+# When disabled, this job still runs and exits 0 so a required "lola-review" check
+# does not freeze merges.
 # Uses the default GITHUB_TOKEN so Lola's comments never re-trigger the coding agent.
 # Check https://github.com/anthropics/claude-code-action for current input names.
 
@@ -27,24 +29,32 @@ concurrency:
 
 jobs:
   lola-review:
-    if: vars.ENABLE_LOLA == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PR: ${{ github.event.pull_request.number }}
     steps:
+      - name: Skip when Lola is disabled
+        if: vars.ENABLE_LOLA != 'true'
+        run: |
+          echo "ENABLE_LOLA is not true; lola-review check passes without reviewing."
+          echo "Set ENABLE_LOLA=true after CLAUDE_CODE_OAUTH_TOKEN is configured (docs/github-setup.md)."
+
       - uses: actions/checkout@v4
+        if: vars.ENABLE_LOLA == 'true'
         with:
           fetch-depth: 0
 
       - name: Wait for tests CI
         id: ci
+        if: vars.ENABLE_LOLA == 'true'
         run: |
           set -euo pipefail
           echo "Waiting for checks on PR #$PR…"
           for i in $(seq 1 60); do
-            json=$(gh pr checks "$PR" --json name,state,conclusion 2>/dev/null || echo '[]')
+            json=$(gh pr checks "$PR" --json name,state,bucket)
             verdict=$(printf '%s' "$json" | python3 -c '
           import json, sys
           checks = json.loads(sys.stdin.read() or "[]")
@@ -54,12 +64,11 @@ jobs:
               raise SystemExit
           failed, unfinished = [], []
           for c in tests:
-              concl = (c.get("conclusion") or "").upper()
-              state = (c.get("state") or "").upper()
+              bucket = (c.get("bucket") or "").lower()
               name = c.get("name") or "tests"
-              if concl in ("SUCCESS", "NEUTRAL", "SKIPPED") or state == "SUCCESS":
+              if bucket in ("pass", "skipping"):
                   continue
-              if concl in ("FAILURE", "CANCELLED", "TIMED_OUT") or state == "FAILURE":
+              if bucket in ("fail", "cancel"):
                   failed.append(name)
                   continue
               unfinished.append(name)
@@ -88,20 +97,19 @@ jobs:
           echo "tests-timeout" > /tmp/ci-fail-name.txt
 
       - name: Comment when CI is red
-        if: steps.ci.outputs.ci_ok != 'true'
+        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok != 'true'
         run: |
           name=$(cat /tmp/ci-fail-name.txt 2>/dev/null || echo tests)
           body=$(printf '%s\n' "**Verdict: CHANGES REQUESTED**" "" \
             "CI is not green (\`$name\`). Lola does not review a red suite." \
             "Re-run or fix tests, then push; Lola will run again.")
-          gh pr review "$PR" --request-changes --body "$body" || \
-            gh pr review "$PR" --comment --body "$body"
+          gh pr review "$PR" --comment --body "$body"
           gh pr edit "$PR" --add-label "review:changes" --remove-label "review:pass" || true
           echo "::error::CI not green; Lola will not PASS."
           exit 1
 
       - uses: anthropics/claude-code-action@v1
-        if: steps.ci.outputs.ci_ok == 'true'
+        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: |
@@ -144,7 +152,8 @@ jobs:
                an AGENTS.md checklist, then findings ranked Must fix / Should fix / Nice to have.
                Keep it under 600 words.
             9. Post it: `gh pr review $PR --comment --body-file review.md`
-               (Do not use --approve. Humans are the only merge authority.)
+               (Do not use --approve or --request-changes. Humans are the only merge authority.
+               Fail the check via review-verdict.txt instead.)
             10. Write exactly one word, PASS or CHANGES, to review-verdict.txt.
                 CHANGES only if: a criterion is Not met by its literal wording, an AGENTS.md
                 Must-fix rule is broken, red evidence is fake, a test is tautological, hardware
@@ -152,7 +161,7 @@ jobs:
                 issue did not state. Style-only nits never block.
 
       - name: Enforce verdict
-        if: steps.ci.outputs.ci_ok == 'true'
+        if: vars.ENABLE_LOLA == 'true' && steps.ci.outputs.ci_ok == 'true'
         run: |
           v=$(tr -d '[:space:]' < review-verdict.txt 2>/dev/null || echo MISSING)
           echo "Lola verdict: $v"

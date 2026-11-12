@@ -99,10 +99,7 @@ jobs:
           if gh pr list --repo "$GITHUB_REPOSITORY" --search "Closes #$n" --state open --json number,isDraft --jq 'length' | grep -qx '[1-9][0-9]*'; then
             echo "PR found for #$n"; exit 0
           fi
-          if gh pr list --repo "$GITHUB_REPOSITORY" --head "issue-$n" --state open --json number --jq 'length' 2>/dev/null | grep -qx '[1-9][0-9]*'; then
-            echo "PR found by head prefix for #$n"; exit 0
-          fi
-          # Heads are issue-N-slug; match any open PR whose head starts with issue-N-
+          # Heads are issue-N-slug
           if gh pr list --repo "$GITHUB_REPOSITORY" --state open --json headRefName,number --jq "[.[] | select(.headRefName | startswith(\"issue-$n-\"))] | length" | grep -qx '[1-9][0-9]*'; then
             echo "PR found by branch prefix for #$n"; exit 0
           fi

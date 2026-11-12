@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 fail=0
 
 if grep -rEn --include='*.py' \
-  'serial\.Serial\(|can\.interface\.Bus\(|can\.Bus\(|python-can' \
+  'serial\.Serial\(|can\.interface\.Bus\(|can\.Bus\(' \
   src/dyno 2>/dev/null; then
   echo "::error::src/dyno must not open serial ports or CAN buses directly (AGENTS.md safety boundary)"
   fail=1

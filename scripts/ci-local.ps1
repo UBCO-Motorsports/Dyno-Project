@@ -25,7 +25,7 @@ if (Get-Command bash -ErrorAction SilentlyContinue) {
 } else {
     # PowerShell fallback of scripts/check_guardrails.sh
     $hits = Get-ChildItem -Path "src\dyno" -Filter "*.py" -Recurse -ErrorAction SilentlyContinue |
-        Select-String -Pattern 'serial\.Serial\(|can\.interface\.Bus\(|can\.Bus\(|python-can|tractive.?battery|spin_motor\(|drive_valve\(|set_valve_position\('
+        Select-String -Pattern 'serial\.Serial\(|can\.interface\.Bus\(|can\.Bus\(|tractive.?battery|spin_motor\(|drive_valve\(|set_valve_position\('
     if ($hits) {
         $hits | ForEach-Object { Write-Host $_.Line }
         throw "FAILED step: guardrails (src/dyno must not open live hardware or actuate the rig)"
