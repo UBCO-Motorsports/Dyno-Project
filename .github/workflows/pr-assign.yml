@@ -5,7 +5,8 @@ name: Assign PR owner
 
 on:
   pull_request:
-    types: [opened, ready_for_review, reopened]
+    # synchronize re-runs after workflow fixes land on the PR branch
+    types: [opened, ready_for_review, reopened, synchronize]
 
 permissions:
   pull-requests: write
