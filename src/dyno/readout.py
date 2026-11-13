@@ -1,5 +1,6 @@
 from dataclasses import dataclass, replace
 
+from dyno.pedal import PedalLimits, pedal_voltages
 from dyno.run_state import RigCommand, RunEvent, TestRun
 from dyno.sample import Sample
 
@@ -33,4 +34,25 @@ class OperatorSession:
         return readout_text(display)
 
     def command(self, requested: RigCommand) -> RigCommand:
+        return self.run.command(requested)
+
+    def manual_command(
+        self,
+        pedal_position: float,
+        valve_setpoint: float,
+        a: PedalLimits,
+        b: PedalLimits,
+    ) -> RigCommand:
+        """Build the command from one pedal position, then pass it through run.command()."""
+        if not (0.0 <= pedal_position <= 1.0):
+            raise ValueError("position must be between 0.0 and 1.0")
+        if not (0.0 <= valve_setpoint <= 1.0):
+            raise ValueError("valve setpoint must be between 0.0 and 1.0")
+        voltage_a, voltage_b = pedal_voltages(pedal_position, a, b)
+        requested = RigCommand(
+            pedal_voltage_a=voltage_a,
+            pedal_voltage_b=voltage_b,
+            torque_command_nm=0,
+            valve_setpoint=valve_setpoint,
+        )
         return self.run.command(requested)
