@@ -6,9 +6,10 @@ stand-in for the rig.
 
 Model (ω in rad/s, ``fill`` and pedal position in 0–1):
 
-- Motor torque: ``T_m = pedal_position × PEAK_TORQUE_NM``, unless the applied
-  ``RigCommand`` has ``torque_command_nm == 0`` (the #18 safe command), then
-  ``T_m = 0``.
+- Motor torque: ``T_m = pedal_position × PEAK_TORQUE_NM`` when the command
+  requests spin (``torque_command_nm != 0``, or #43 manual control with both
+  pedal voltages at zero release). The #18 safe command has zero pedals and
+  ``torque_command_nm == 0``, so ``T_m = 0``.
 - Brake torque: ``T_b = k × fill × ω²``
 - Shaft dynamics: ``dω/dt = (T_m − T_b − c × ω) / J``
 - Load cell: ``force_n = T_b / arm_length_m``
@@ -99,7 +100,11 @@ class DynoSimulator:
             self._pedal_a,
             self._pedal_b,
         )
-        if command.torque_command_nm == 0:
+        pedals_released = (
+            command.pedal_voltage_a == 0.0 and command.pedal_voltage_b == 0.0
+        )
+        motor_off = command.torque_command_nm == 0 and pedals_released
+        if motor_off:
             self._motor_torque_nm = 0.0
         else:
             self._motor_torque_nm = self._pedal_position * PEAK_TORQUE_NM
