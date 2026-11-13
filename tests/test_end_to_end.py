@@ -133,6 +133,8 @@ def test_end_to_end_simulator_flow(tmp_path: Path) -> None:
     running = [r for r in rows if r.run_state == RunState.RUNNING.value]
     assert len(running) >= 2
     assert running[-1].speed_rpm > running[0].speed_rpm
+    for prev, curr in itertools.pairwise(r.speed_rpm for r in running):
+        assert curr >= prev - 1e-9
 
     safe_rows = [r for r in rows if r.run_state == RunState.SAFE.value]
     assert safe_rows, "expected samples after stop"

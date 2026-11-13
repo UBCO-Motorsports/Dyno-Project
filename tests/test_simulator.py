@@ -6,7 +6,7 @@ import math
 import pytest
 
 from dyno.limits import MAX_SPEED_RPM, PEAK_TORQUE_NM
-from dyno.pedal import PedalLimits
+from dyno.pedal import PedalLimits, pedal_voltages
 from dyno.ports import ForceSource, PedalOutput, SpeedSource, Valve
 from dyno.run_state import RigCommand, RunEvent, RunState, TestRun
 from dyno.simulator import DynoSimulator
@@ -167,3 +167,26 @@ def test_after_safe_command_speed_only_falls():
     for prev, curr in itertools.pairwise(falling):
         assert curr <= prev + 1e-9
     assert run.state() is RunState.SAFE
+
+
+def test_manual_command_with_zero_torque_request_spins_from_pedal_voltages():
+    # #43 manual: torque_command_nm stays 0; load comes from pedal voltages (#39 limits).
+    va, vb = pedal_voltages(0.25, _PEDAL_A, _PEDAL_B)
+    manual = RigCommand(va, vb, 0, 0.4)
+    sim = _sim(pedal_limits_a=_PEDAL_A, pedal_limits_b=_PEDAL_B)
+    sim.apply_command(manual)
+    assert sim.speed_rpm() == pytest.approx(0.0)
+    steps = 400
+    for _ in range(steps):
+        sim.step(_DT_S)
+    assert sim.speed_rpm() > 10.0
+
+
+def test_safe_command_with_released_pedals_keeps_shaft_stopped():
+    # #18 safe command via TestRun: zero pedals and torque_command_nm == 0.
+    safe = RigCommand(0, 0, 0, 0.3)
+    sim = _sim()
+    sim.apply_command(safe)
+    for _ in range(500):
+        sim.step(_DT_S)
+    assert sim.speed_rpm() == pytest.approx(0.0, abs=1e-9)
