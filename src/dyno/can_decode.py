@@ -13,7 +13,20 @@ class SignalDef:
 
 
 def decode_signal(payload: bytes, signal: SignalDef) -> float:
-    """Extract the integer and return integer * scale + offset."""
+    """Extract the integer and return integer * scale + offset.
+
+    Bit numbering for extraction:
+
+    - ``little_endian=True`` (Intel): payload bit *i* is the bit at index ``i % 8`` of
+      byte ``i // 8``, where bit 0 is the least significant bit of byte 0. The field
+      reads ``length`` bits from ``start_bit`` upward and packs them LSB-first into raw.
+
+    - ``little_endian=False`` (Motorola): payload bit index *n* is the bit at index
+      ``7 - (n % 8)`` of byte ``n // 8``, where index 0 is the most significant bit of
+      byte 0. The field reads ``length`` bits from ``start_bit`` and packs them MSB-first
+      into raw. Byte-aligned fields whose ``start_bit`` and ``length`` are multiples of 8
+      use ``int.from_bytes`` for whole-byte extraction.
+    """
     if signal.length < 1 or signal.length > 16:
         raise ValueError(f"length must be 1..16, got {signal.length}")
 
